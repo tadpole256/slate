@@ -20,63 +20,63 @@ export async function listTables(): Promise<AppTable[]> {
 
 export async function getTableSnapshot(tableId: string, query?: string): Promise<TableSnapshot> {
   return invoke<TableSnapshot>("get_table_snapshot", {
-    table_id: tableId,
+    tableId,
     query: query?.trim() || null
   });
 }
 
 export async function createTable(displayName: string): Promise<AppTable> {
-  return invoke<AppTable>("create_table", { display_name: displayName });
+  return invoke<AppTable>("create_table", { displayName });
 }
 
 export async function renameTable(tableId: string, displayName: string): Promise<AppTable> {
   return invoke<AppTable>("rename_table", {
-    table_id: tableId,
-    display_name: displayName
+    tableId,
+    displayName
   });
 }
 
 export async function deleteTable(tableId: string): Promise<void> {
-  return invoke<void>("delete_table", { table_id: tableId });
+  return invoke<void>("delete_table", { tableId });
 }
 
 export async function createField(input: FieldMutationInput): Promise<AppField> {
   return invoke<AppField>("create_field", {
-    table_id: input.table_id,
-    display_name: input.display_name,
-    field_type: input.field_type
+    tableId: input.table_id,
+    displayName: input.display_name,
+    fieldType: input.field_type
   });
 }
 
 export async function renameField(fieldId: string, displayName: string): Promise<AppField> {
   return invoke<AppField>("rename_field", {
-    field_id: fieldId,
-    display_name: displayName
+    fieldId,
+    displayName
   });
 }
 
 export async function deleteField(fieldId: string): Promise<void> {
-  return invoke<void>("delete_field", { field_id: fieldId });
+  return invoke<void>("delete_field", { fieldId });
 }
 
 export async function createRecord(input: RecordMutationInput): Promise<RecordRow> {
   return invoke<RecordRow>("create_record", {
-    table_id: input.table_id,
+    tableId: input.table_id,
     values: input.values
   });
 }
 
 export async function updateRecord(input: RecordUpdateInput): Promise<RecordRow> {
   return invoke<RecordRow>("update_record", {
-    table_id: input.table_id,
-    record_id: input.record_id,
+    tableId: input.table_id,
+    recordId: input.record_id,
     values: input.values
   });
 }
 
 export async function deleteRecord(tableId: string, recordId: string): Promise<void> {
   return invoke<void>("delete_record", {
-    table_id: tableId,
-    record_id: recordId
+    tableId,
+    recordId
   });
 }
