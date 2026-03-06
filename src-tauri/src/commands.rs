@@ -18,13 +18,26 @@ use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
 
+fn open_connection(db_path: &std::path::Path) -> anyhow::Result<rusqlite::Connection> {
+    let conn = rusqlite::Connection::open(db_path)?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    conn.pragma_update(None, "foreign_keys", "ON")?;
+    crate::db::init::initialize_database(&conn)?;
+    Ok(conn)
+}
+
 fn with_conn<T>(state: &State<'_, AppState>, operation: impl FnOnce(&rusqlite::Connection) -> anyhow::Result<T>) -> CommandResult<T> {
-    let guard = state
+    let mut guard = state
         .conn
         .lock()
         .map_err(|_| "Failed to acquire database lock".to_string())?;
 
-    operation(&guard).map_err(|error| error.to_string())
+    if guard.is_none() {
+        let conn = open_connection(&state.db_path).map_err(|e| e.to_string())?;
+        *guard = Some(conn);
+    }
+
+    operation(guard.as_ref().unwrap()).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

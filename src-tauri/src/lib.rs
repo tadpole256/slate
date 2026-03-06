@@ -13,7 +13,8 @@ use rusqlite::Connection;
 use tauri::Manager;
 
 pub struct AppState {
-    pub conn: Mutex<Connection>,
+    pub conn: Mutex<Option<Connection>>,
+    pub db_path: PathBuf,
     pub attachments_dir: PathBuf,
 }
 
@@ -27,12 +28,9 @@ fn initialize_state(
     let attachments_dir = app_data_dir.join("attachments");
     fs::create_dir_all(&attachments_dir)?;
 
-    let conn = Connection::open(db_path)?;
-    conn.pragma_update(None, "foreign_keys", "ON")?;
-    db::init::initialize_database(&conn)?;
-
     Ok(AppState {
-        conn: Mutex::new(conn),
+        conn: Mutex::new(None),
+        db_path,
         attachments_dir,
     })
 }
