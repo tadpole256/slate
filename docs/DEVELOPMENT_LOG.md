@@ -44,3 +44,32 @@
 2. Run `npm run tauri dev` and resolve any Rust compile errors.
 3. Validate end-to-end SQLite CRUD from UI interactions.
 4. Add targeted tests for backend schema and record operations.
+
+### Session 2
+
+#### Completed
+- Installed Rust toolchain via `rustup`:
+  - `cargo 1.94.0`
+  - `rustc 1.94.0`
+- Resolved Tauri dev/runtime blockers:
+  - fixed Tauri package version mismatch (aligned NPM and Rust crates)
+  - updated Vite/Tauri dev URL host to IPv4 (`127.0.0.1`) to avoid IPv6 binding issues in this environment
+  - generated proper app icons with `tauri icon` from `src-tauri/icons/slate-icon.svg`
+  - fixed Rust setup error typing in `src-tauri/src/lib.rs`
+- Verified native startup with `npm run tauri -- dev` (app compiles and launches).
+- Added backend test suite in `src-tauri/src/tests.rs` covering:
+  - metadata/starter seed initialization
+  - table/field/record CRUD flows
+  - current-table search behavior
+  - generalized record link persistence
+  - guardrail: cannot delete last remaining field in a table
+- Replaced README with a detailed GitHub-ready project document.
+
+#### Verification
+- `cargo test --manifest-path src-tauri/Cargo.toml` passed:
+  - 2 tests passed, 0 failed.
+- `npm run tauri -- dev` now starts successfully.
+
+#### Notes
+- A broad `cargo` lockfile was generated for native dependencies (`src-tauri/Cargo.lock`) during the first successful Rust build.
+- `link_service::create_link` is currently marked `#[allow(dead_code)]` because relationship UI wiring is still intentionally deferred.
