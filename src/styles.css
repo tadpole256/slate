@@ -382,6 +382,27 @@ button {
   transition: all 160ms ease;
 }
 
+.link-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem;
+}
+
+.link-open-button {
+  border: 1px solid rgba(100, 132, 198, 0.65);
+  background: rgba(45, 64, 101, 0.62);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.42rem 0.52rem;
+  font-size: 0.72rem;
+}
+
+.link-open-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .grid-input:focus,
 .grid-textarea:focus,
 .field-editor input:focus,
@@ -479,6 +500,81 @@ button {
 .modal-field select {
   background: rgba(28, 39, 60, 0.85);
   border-color: rgba(63, 78, 108, 0.5);
+}
+
+.link-detail-wrap {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.link-detail-button {
+  min-width: 92px;
+}
+
+.attachments-section {
+  border-top: 1px solid rgba(53, 65, 88, 0.5);
+  margin-top: 0.4rem;
+  padding-top: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.attachments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.attachments-header h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.attachments-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.attachment-row {
+  border: 1px solid rgba(53, 65, 88, 0.6);
+  background: rgba(29, 40, 64, 0.52);
+  border-radius: 10px;
+  padding: 0.52rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.attachment-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.attachment-meta strong {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-meta small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
 }
 
 .empty-state {
