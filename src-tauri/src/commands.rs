@@ -30,6 +30,7 @@ fn with_conn<T>(state: &State<'_, AppState>, operation: impl FnOnce(&rusqlite::C
 #[tauri::command]
 pub fn init_app(state: State<'_, AppState>) -> CommandResult<InitResponse> {
     with_conn(&state, |conn| {
+        table_service::repair_all_table_storage(conn)?;
         let tables = metadata_service::list_tables(conn)?;
         Ok(InitResponse { tables })
     })
