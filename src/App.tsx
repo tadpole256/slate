@@ -272,9 +272,19 @@ export default function App() {
       />
 
       {loading && !error ? (
-        <div className="loading-overlay">
-          <div className="loading-spinner" aria-hidden="true" />
-          <span>Loading Slate...</span>
+        <div className="loading-overlay" style={{flexDirection: "column", padding: '1rem'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+            <div className="loading-spinner" aria-hidden="true" />
+            <span>Loading Slate...</span>
+          </div>
+          <pre style={{fontSize: '10px', color: '#ff0'}}>
+            {JSON.stringify({
+              time: new Date().toISOString(),
+              tablesLen: tables.length,
+              loading,
+              error
+            }, null, 2)}
+          </pre>
         </div>
       ) : null}
       {error ? <div className="error-banner">{error}</div> : null}

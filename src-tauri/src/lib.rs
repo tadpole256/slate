@@ -38,7 +38,7 @@ fn initialize_state(
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            let state = initialize_state(app)?;
+            let state = std::sync::Arc::new(initialize_state(app)?);
             app.manage(state);
             Ok(())
         })
