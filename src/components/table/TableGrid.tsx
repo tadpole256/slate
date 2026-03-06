@@ -13,6 +13,7 @@ interface TableGridProps {
     columnKey: string,
     value: string | number | null
   ) => void;
+  onOpenLink: (value: string) => void;
   onRenameField: (field: AppField) => void;
   onDeleteField: (field: AppField) => void;
 }
@@ -23,6 +24,7 @@ export function TableGrid({
   selectedRecordId,
   onSelectRecord,
   onCellChange,
+  onOpenLink,
   onRenameField,
   onDeleteField
 }: TableGridProps) {
@@ -58,6 +60,7 @@ export function TableGrid({
                   field={field}
                   row={row}
                   onChange={(value) => onCellChange(row.record_id, field.column_key, value)}
+                  onOpenLink={onOpenLink}
                 />
               ))}
             </tr>

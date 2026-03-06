@@ -15,6 +15,8 @@ export default function App() {
     tables,
     fieldsByTable,
     recordsByTable,
+    attachmentsByRecord,
+    attachmentsLoading,
     activeTableId,
     selectedRecordId,
     searchQuery,
@@ -36,7 +38,11 @@ export default function App() {
     createRecord,
     updateRecordCell,
     updateRecordValues,
-    deleteRecord
+    deleteRecord,
+    loadRecordAttachments,
+    attachFileToRecord,
+    deleteAttachment,
+    openAttachment
   } = useWorkspaceStore();
 
   const activeTable = tables.find((table) => table.id === activeTableId) ?? null;
@@ -44,6 +50,21 @@ export default function App() {
   const activeRecords = activeTableId ? recordsByTable[activeTableId] ?? [] : [];
   const selectedRecord =
     activeRecords.find((record) => record.record_id === selectedRecordId) ?? null;
+  const selectedRecordAttachments =
+    activeTableId && selectedRecordId
+      ? attachmentsByRecord[`${activeTableId}:${selectedRecordId}`] ?? []
+      : [];
+
+  const openLink = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const hasScheme = /^[a-zA-Z][a-zA-Z\\d+\\-.]*:/.test(trimmed);
+    const normalized = hasScheme ? trimmed : `https://${trimmed}`;
+    window.open(normalized, "_blank", "noopener,noreferrer");
+  };
 
   useEffect(() => {
     void initialize();
@@ -60,6 +81,14 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [searchQuery, activeTableId, refreshActiveTable]);
+
+  useEffect(() => {
+    if (!activeTableId || !selectedRecordId) {
+      return;
+    }
+
+    void loadRecordAttachments(activeTableId, selectedRecordId);
+  }, [activeTableId, selectedRecordId, loadRecordAttachments]);
 
   return (
     <>
@@ -110,6 +139,7 @@ export default function App() {
                 void updateRecordCell(activeTableId, recordId, columnKey, value);
               }
             }}
+            onOpenLink={openLink}
             onAddColumn={() => setAddColumnModalOpen(true)}
             onAddRow={() => {
               if (activeTableId) {
@@ -141,6 +171,22 @@ export default function App() {
                 });
               }
             }}
+            attachments={selectedRecordAttachments}
+            attachmentsLoading={attachmentsLoading}
+            onAttachFile={() => {
+              if (activeTableId && selectedRecordId) {
+                void attachFileToRecord(activeTableId, selectedRecordId);
+              }
+            }}
+            onOpenAttachment={(attachmentId) => {
+              void openAttachment(attachmentId);
+            }}
+            onDeleteAttachment={(attachmentId) => {
+              if (activeTableId && selectedRecordId) {
+                void deleteAttachment(activeTableId, selectedRecordId, attachmentId);
+              }
+            }}
+            onOpenLink={openLink}
             onDeleteRecord={() => {
               if (activeTableId && selectedRecordId && window.confirm("Delete this record?")) {
                 void deleteRecord(activeTableId, selectedRecordId);

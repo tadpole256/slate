@@ -6,6 +6,7 @@ mod services;
 mod tests;
 
 use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use rusqlite::Connection;
@@ -13,14 +14,18 @@ use tauri::Manager;
 
 pub struct AppState {
     pub conn: Mutex<Connection>,
+    pub attachments_dir: PathBuf,
 }
 
 fn initialize_state(
     app: &tauri::App,
 ) -> Result<AppState, Box<dyn std::error::Error>> {
-    let mut db_path = app.path().app_data_dir()?;
-    fs::create_dir_all(&db_path)?;
-    db_path.push("slate.db");
+    let app_data_dir = app.path().app_data_dir()?;
+    fs::create_dir_all(&app_data_dir)?;
+
+    let db_path = app_data_dir.join("slate.db");
+    let attachments_dir = app_data_dir.join("attachments");
+    fs::create_dir_all(&attachments_dir)?;
 
     let conn = Connection::open(db_path)?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
@@ -28,6 +33,7 @@ fn initialize_state(
 
     Ok(AppState {
         conn: Mutex::new(conn),
+        attachments_dir,
     })
 }
 
@@ -51,6 +57,10 @@ pub fn run() {
             commands::create_record,
             commands::update_record,
             commands::delete_record,
+            commands::list_record_attachments,
+            commands::attach_file_to_record,
+            commands::delete_attachment,
+            commands::open_attachment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate application");

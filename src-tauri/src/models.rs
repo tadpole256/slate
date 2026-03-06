@@ -46,3 +46,15 @@ pub struct TableSnapshot {
 pub struct InitResponse {
     pub tables: Vec<AppTable>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordAttachment {
+    pub id: String,
+    pub table_id: String,
+    pub record_id: String,
+    pub file_name: String,
+    pub stored_path: String,
+    pub mime_type: Option<String>,
+    pub size_bytes: Option<i64>,
+    pub created_at: String,
+}

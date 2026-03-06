@@ -4,6 +4,7 @@ interface FieldEditorProps {
   field: AppField;
   value: string | number | null;
   onChange: (value: string | number | null) => void;
+  onOpenLink: (value: string) => void;
 }
 
 function valueToString(value: string | number | null): string {
@@ -13,7 +14,7 @@ function valueToString(value: string | number | null): string {
   return String(value);
 }
 
-export function FieldEditor({ field, value, onChange }: FieldEditorProps) {
+export function FieldEditor({ field, value, onChange, onOpenLink }: FieldEditorProps) {
   const stringValue = valueToString(value);
 
   return (
@@ -40,8 +41,27 @@ export function FieldEditor({ field, value, onChange }: FieldEditorProps) {
         />
       ) : null}
 
-      {(field.field_type === "text" || field.field_type === "link") ? (
+      {field.field_type === "text" ? (
         <input type="text" value={stringValue} onChange={(event) => onChange(event.target.value)} />
+      ) : null}
+
+      {field.field_type === "link" ? (
+        <div className="link-detail-wrap">
+          <input
+            type="url"
+            value={stringValue}
+            placeholder="https://..."
+            onChange={(event) => onChange(event.target.value)}
+          />
+          <button
+            className="action-button secondary link-detail-button"
+            onClick={() => onOpenLink(stringValue)}
+            disabled={!stringValue.trim()}
+            type="button"
+          >
+            Open Link
+          </button>
+        </div>
       ) : null}
     </label>
   );

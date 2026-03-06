@@ -4,6 +4,7 @@ import type {
   AppTable,
   FieldMutationInput,
   InitResponse,
+  RecordAttachment,
   RecordMutationInput,
   RecordRow,
   RecordUpdateInput,
@@ -79,4 +80,32 @@ export async function deleteRecord(tableId: string, recordId: string): Promise<v
     tableId,
     recordId
   });
+}
+
+export async function listRecordAttachments(
+  tableId: string,
+  recordId: string
+): Promise<RecordAttachment[]> {
+  return invoke<RecordAttachment[]>("list_record_attachments", {
+    tableId,
+    recordId
+  });
+}
+
+export async function attachFileToRecord(
+  tableId: string,
+  recordId: string
+): Promise<RecordAttachment | null> {
+  return invoke<RecordAttachment | null>("attach_file_to_record", {
+    tableId,
+    recordId
+  });
+}
+
+export async function deleteAttachment(attachmentId: string): Promise<void> {
+  return invoke<void>("delete_attachment", { attachmentId });
+}
+
+export async function openAttachment(attachmentId: string): Promise<void> {
+  return invoke<void>("open_attachment", { attachmentId });
 }

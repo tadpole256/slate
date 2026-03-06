@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde_json::Value;
 use tauri::State;
 
-use crate::models::{AppField, AppTable, InitResponse, RecordRow, TableSnapshot};
-use crate::services::{metadata_service, record_service, table_service};
+use crate::models::{AppField, AppTable, InitResponse, RecordAttachment, RecordRow, TableSnapshot};
+use crate::services::{attachment_service, metadata_service, record_service, table_service};
 use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
@@ -65,7 +65,11 @@ pub fn rename_table(
 
 #[tauri::command]
 pub fn delete_table(state: State<'_, AppState>, table_id: String) -> CommandResult<()> {
-    with_conn(&state, |conn| table_service::delete_table(conn, &table_id))
+    let attachments_dir = state.attachments_dir.clone();
+    with_conn(&state, |conn| {
+        attachment_service::delete_attachments_for_table(conn, &attachments_dir, &table_id)?;
+        table_service::delete_table(conn, &table_id)
+    })
 }
 
 #[tauri::command]
@@ -119,5 +123,48 @@ pub fn delete_record(
     table_id: String,
     record_id: String,
 ) -> CommandResult<()> {
-    with_conn(&state, |conn| record_service::delete_record(conn, &table_id, &record_id))
+    let attachments_dir = state.attachments_dir.clone();
+    with_conn(&state, |conn| {
+        attachment_service::delete_attachments_for_record(conn, &attachments_dir, &table_id, &record_id)?;
+        record_service::delete_record(conn, &table_id, &record_id)
+    })
+}
+
+#[tauri::command]
+pub fn list_record_attachments(
+    state: State<'_, AppState>,
+    table_id: String,
+    record_id: String,
+) -> CommandResult<Vec<RecordAttachment>> {
+    with_conn(&state, |conn| {
+        attachment_service::list_record_attachments(conn, &table_id, &record_id)
+    })
+}
+
+#[tauri::command]
+pub fn attach_file_to_record(
+    state: State<'_, AppState>,
+    table_id: String,
+    record_id: String,
+) -> CommandResult<Option<RecordAttachment>> {
+    let attachments_dir = state.attachments_dir.clone();
+    with_conn(&state, |conn| {
+        attachment_service::attach_file_to_record(conn, &attachments_dir, &table_id, &record_id)
+    })
+}
+
+#[tauri::command]
+pub fn delete_attachment(state: State<'_, AppState>, attachment_id: String) -> CommandResult<()> {
+    let attachments_dir = state.attachments_dir.clone();
+    with_conn(&state, |conn| {
+        attachment_service::delete_attachment(conn, &attachments_dir, &attachment_id)
+    })
+}
+
+#[tauri::command]
+pub fn open_attachment(state: State<'_, AppState>, attachment_id: String) -> CommandResult<()> {
+    let attachments_dir = state.attachments_dir.clone();
+    with_conn(&state, |conn| {
+        attachment_service::open_attachment(conn, &attachments_dir, &attachment_id)
+    })
 }

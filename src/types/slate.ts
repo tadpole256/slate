@@ -53,3 +53,14 @@ export interface RecordMutationInput {
 export interface RecordUpdateInput extends RecordMutationInput {
   record_id: string;
 }
+
+export interface RecordAttachment {
+  id: string;
+  table_id: string;
+  record_id: string;
+  file_name: string;
+  stored_path: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+}

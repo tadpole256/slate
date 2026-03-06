@@ -1,19 +1,23 @@
 import { create } from "zustand";
 import {
+  attachFileToRecord,
   createField,
   createRecord,
   createTable,
+  deleteAttachment,
   deleteField,
   deleteRecord,
   deleteTable,
   getTableSnapshot,
   initApp,
+  listRecordAttachments,
+  openAttachment,
   renameField,
   renameTable,
   updateRecord
 } from "../lib/tauri";
 import { normalizeName } from "../lib/format";
-import type { AppField, AppTable, FieldType, RecordRow } from "../types/slate";
+import type { AppField, AppTable, FieldType, RecordAttachment, RecordRow } from "../types/slate";
 
 interface WorkspaceState {
   loading: boolean;
@@ -21,6 +25,8 @@ interface WorkspaceState {
   tables: AppTable[];
   fieldsByTable: Record<string, AppField[]>;
   recordsByTable: Record<string, RecordRow[]>;
+  attachmentsByRecord: Record<string, RecordAttachment[]>;
+  attachmentsLoading: boolean;
   activeTableId: string | null;
   selectedRecordId: string | null;
   searchQuery: string;
@@ -52,6 +58,10 @@ interface WorkspaceState {
     values: Record<string, string | number | null>
   ) => Promise<void>;
   deleteRecord: (tableId: string, recordId: string) => Promise<void>;
+  loadRecordAttachments: (tableId: string, recordId: string) => Promise<void>;
+  attachFileToRecord: (tableId: string, recordId: string) => Promise<void>;
+  deleteAttachment: (tableId: string, recordId: string, attachmentId: string) => Promise<void>;
+  openAttachment: (attachmentId: string) => Promise<void>;
 }
 
 function buildDefaultValues(fields: AppField[]): Record<string, string | number | null> {
@@ -85,6 +95,10 @@ function updateLocalRecord(
   });
 }
 
+function recordAttachmentKey(tableId: string, recordId: string): string {
+  return `${tableId}:${recordId}`;
+}
+
 function toErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     return error.message;
@@ -107,6 +121,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   tables: [],
   fieldsByTable: {},
   recordsByTable: {},
+  attachmentsByRecord: {},
+  attachmentsLoading: false,
   activeTableId: null,
   selectedRecordId: null,
   searchQuery: "",
@@ -232,6 +248,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const nextActive = state.activeTableId === tableId ? nextTables[0]?.id ?? null : state.activeTableId;
 
       set((current) => ({
+        attachmentsByRecord: Object.fromEntries(
+          Object.entries(current.attachmentsByRecord).filter(([key]) => !key.startsWith(`${tableId}:`))
+        ),
         tables: nextTables,
         activeTableId: nextActive,
         selectedRecordId: null,
@@ -360,7 +379,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   deleteRecord: async (tableId, recordId) => {
     try {
       await deleteRecord(tableId, recordId);
+      const attachmentKey = recordAttachmentKey(tableId, recordId);
       set((state) => ({
+        attachmentsByRecord: Object.fromEntries(
+          Object.entries(state.attachmentsByRecord).filter(([key]) => key !== attachmentKey)
+        ),
         recordsByTable: {
           ...state.recordsByTable,
           [tableId]: (state.recordsByTable[tableId] ?? []).filter(
@@ -371,6 +394,73 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       }));
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to delete record") });
+    }
+  },
+
+  loadRecordAttachments: async (tableId, recordId) => {
+    const key = recordAttachmentKey(tableId, recordId);
+    set({ attachmentsLoading: true });
+    try {
+      const attachments = await listRecordAttachments(tableId, recordId);
+      set((state) => ({
+        attachmentsByRecord: {
+          ...state.attachmentsByRecord,
+          [key]: attachments
+        },
+        attachmentsLoading: false,
+        error: null
+      }));
+    } catch (error) {
+      set({
+        attachmentsLoading: false,
+        error: toErrorMessage(error, "Failed to load attachments")
+      });
+    }
+  },
+
+  attachFileToRecord: async (tableId, recordId) => {
+    const key = recordAttachmentKey(tableId, recordId);
+    try {
+      const attachment = await attachFileToRecord(tableId, recordId);
+      if (!attachment) {
+        return;
+      }
+
+      set((state) => ({
+        attachmentsByRecord: {
+          ...state.attachmentsByRecord,
+          [key]: [attachment, ...(state.attachmentsByRecord[key] ?? [])]
+        },
+        error: null
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to attach file") });
+    }
+  },
+
+  deleteAttachment: async (tableId, recordId, attachmentId) => {
+    const key = recordAttachmentKey(tableId, recordId);
+    try {
+      await deleteAttachment(attachmentId);
+      set((state) => ({
+        attachmentsByRecord: {
+          ...state.attachmentsByRecord,
+          [key]: (state.attachmentsByRecord[key] ?? []).filter(
+            (attachment) => attachment.id !== attachmentId
+          )
+        },
+        error: null
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to delete attachment") });
+    }
+  },
+
+  openAttachment: async (attachmentId) => {
+    try {
+      await openAttachment(attachmentId);
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to open attachment") });
     }
   }
 }));

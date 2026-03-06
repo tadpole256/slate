@@ -6,7 +6,8 @@ const FIELD_TYPE_OPTIONS: Array<{ label: string; value: FieldType }> = [
   { label: "Single-line text", value: "text" },
   { label: "Long text", value: "long_text" },
   { label: "Date", value: "date" },
-  { label: "Checkbox", value: "checkbox" }
+  { label: "Checkbox", value: "checkbox" },
+  { label: "Link", value: "link" }
 ];
 
 interface AddColumnModalProps {

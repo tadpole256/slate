@@ -1,3 +1,4 @@
+pub mod attachment_service;
 pub mod link_service;
 pub mod metadata_service;
 pub mod record_service;

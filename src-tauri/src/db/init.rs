@@ -67,6 +67,20 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
 
         CREATE INDEX IF NOT EXISTS idx_record_links_to
           ON record_links(to_table_id, to_record_id);
+
+        CREATE TABLE IF NOT EXISTS record_attachments (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          stored_path TEXT NOT NULL,
+          mime_type TEXT,
+          size_bytes INTEGER,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_record_attachments_record
+          ON record_attachments(table_id, record_id);
         "#,
     )?;
 

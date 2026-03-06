@@ -10,6 +10,7 @@ interface MainTableViewProps {
   selectedRecordId: string | null;
   onSelectRecord: (recordId: string) => void;
   onCellChange: (recordId: string, columnKey: string, value: string | number | null) => void;
+  onOpenLink: (value: string) => void;
   onAddColumn: () => void;
   onAddRow: () => void;
   onRenameField: (field: AppField) => void;
@@ -23,6 +24,7 @@ export function MainTableView({
   selectedRecordId,
   onSelectRecord,
   onCellChange,
+  onOpenLink,
   onAddColumn,
   onAddRow,
   onRenameField,
@@ -42,6 +44,7 @@ export function MainTableView({
         selectedRecordId={selectedRecordId}
         onSelectRecord={onSelectRecord}
         onCellChange={onCellChange}
+        onOpenLink={onOpenLink}
         onRenameField={onRenameField}
         onDeleteField={onDeleteField}
       />
