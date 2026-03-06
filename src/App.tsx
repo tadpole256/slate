@@ -61,7 +61,7 @@ export default function App() {
       return;
     }
 
-    const hasScheme = /^[a-zA-Z][a-zA-Z\\d+\\-.]*:/.test(trimmed);
+    const hasScheme = /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed);
     const normalized = hasScheme ? trimmed : `https://${trimmed}`;
     window.open(normalized, "_blank", "noopener,noreferrer");
   };
