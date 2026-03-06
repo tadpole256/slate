@@ -512,6 +512,33 @@ button {
   min-width: 92px;
 }
 
+.linked-records-section {
+  border-top: 1px solid rgba(53, 65, 88, 0.5);
+  margin-top: 0.4rem;
+  padding-top: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.linked-records-header h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.linked-records-create {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.linked-records-create .action-button {
+  justify-content: center;
+}
+
 .attachments-section {
   border-top: 1px solid rgba(53, 65, 88, 0.5);
   margin-top: 0.4rem;

@@ -1,23 +1,35 @@
 import { create } from "zustand";
 import {
-  attachFileToRecord,
+  attachFileToRecord as attachFileToRecordApi,
   createField,
   createRecord,
+  createRecordLink as createRecordLinkApi,
   createTable,
-  deleteAttachment,
+  deleteAttachment as deleteAttachmentApi,
   deleteField,
   deleteRecord,
+  deleteRecordLink as deleteRecordLinkApi,
   deleteTable,
   getTableSnapshot,
   initApp,
-  listRecordAttachments,
-  openAttachment,
+  listRecordAttachments as listRecordAttachmentsApi,
+  listRecordLinks as listRecordLinksApi,
+  listRecordOptions as listRecordOptionsApi,
+  openAttachment as openAttachmentApi,
   renameField,
   renameTable,
   updateRecord
 } from "../lib/tauri";
 import { normalizeName } from "../lib/format";
-import type { AppField, AppTable, FieldType, RecordAttachment, RecordRow } from "../types/slate";
+import type {
+  AppField,
+  AppTable,
+  FieldType,
+  RecordAttachment,
+  RecordLink,
+  RecordOption,
+  RecordRow
+} from "../types/slate";
 
 interface WorkspaceState {
   loading: boolean;
@@ -25,6 +37,10 @@ interface WorkspaceState {
   tables: AppTable[];
   fieldsByTable: Record<string, AppField[]>;
   recordsByTable: Record<string, RecordRow[]>;
+  linksByRecord: Record<string, RecordLink[]>;
+  recordOptionsByTable: Record<string, RecordOption[]>;
+  linksLoading: boolean;
+  recordOptionsLoading: boolean;
   attachmentsByRecord: Record<string, RecordAttachment[]>;
   attachmentsLoading: boolean;
   activeTableId: string | null;
@@ -58,6 +74,15 @@ interface WorkspaceState {
     values: Record<string, string | number | null>
   ) => Promise<void>;
   deleteRecord: (tableId: string, recordId: string) => Promise<void>;
+  loadRecordLinks: (tableId: string, recordId: string) => Promise<void>;
+  createRecordLink: (
+    fromTableId: string,
+    fromRecordId: string,
+    toTableId: string,
+    toRecordId: string
+  ) => Promise<void>;
+  deleteRecordLink: (tableId: string, recordId: string, linkId: string) => Promise<void>;
+  loadRecordOptions: (tableId: string, query?: string) => Promise<void>;
   loadRecordAttachments: (tableId: string, recordId: string) => Promise<void>;
   attachFileToRecord: (tableId: string, recordId: string) => Promise<void>;
   deleteAttachment: (tableId: string, recordId: string, attachmentId: string) => Promise<void>;
@@ -99,6 +124,10 @@ function recordAttachmentKey(tableId: string, recordId: string): string {
   return `${tableId}:${recordId}`;
 }
 
+function recordLinkKey(tableId: string, recordId: string): string {
+  return `${tableId}:${recordId}`;
+}
+
 function toErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     return error.message;
@@ -121,6 +150,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   tables: [],
   fieldsByTable: {},
   recordsByTable: {},
+  linksByRecord: {},
+  recordOptionsByTable: {},
+  linksLoading: false,
+  recordOptionsLoading: false,
   attachmentsByRecord: {},
   attachmentsLoading: false,
   activeTableId: null,
@@ -248,6 +281,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const nextActive = state.activeTableId === tableId ? nextTables[0]?.id ?? null : state.activeTableId;
 
       set((current) => ({
+        linksByRecord: Object.fromEntries(
+          Object.entries(current.linksByRecord).filter(([key]) => !key.startsWith(`${tableId}:`))
+        ),
         attachmentsByRecord: Object.fromEntries(
           Object.entries(current.attachmentsByRecord).filter(([key]) => !key.startsWith(`${tableId}:`))
         ),
@@ -380,7 +416,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       await deleteRecord(tableId, recordId);
       const attachmentKey = recordAttachmentKey(tableId, recordId);
+      const linkKey = recordLinkKey(tableId, recordId);
       set((state) => ({
+        linksByRecord: Object.fromEntries(
+          Object.entries(state.linksByRecord).filter(([key]) => key !== linkKey)
+        ),
         attachmentsByRecord: Object.fromEntries(
           Object.entries(state.attachmentsByRecord).filter(([key]) => key !== attachmentKey)
         ),
@@ -397,11 +437,84 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
 
+  loadRecordLinks: async (tableId, recordId) => {
+    const key = recordLinkKey(tableId, recordId);
+    set({ linksLoading: true });
+    try {
+      const links = await listRecordLinksApi(tableId, recordId);
+      set((state) => ({
+        linksByRecord: {
+          ...state.linksByRecord,
+          [key]: links
+        },
+        linksLoading: false,
+        error: null
+      }));
+    } catch (error) {
+      set({
+        linksLoading: false,
+        error: toErrorMessage(error, "Failed to load linked records")
+      });
+    }
+  },
+
+  createRecordLink: async (fromTableId, fromRecordId, toTableId, toRecordId) => {
+    const key = recordLinkKey(fromTableId, fromRecordId);
+    try {
+      const link = await createRecordLinkApi(fromTableId, fromRecordId, toTableId, toRecordId);
+      set((state) => ({
+        linksByRecord: {
+          ...state.linksByRecord,
+          [key]: [link, ...(state.linksByRecord[key] ?? []).filter((item) => item.id !== link.id)]
+        },
+        error: null
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to create linked record reference") });
+    }
+  },
+
+  deleteRecordLink: async (tableId, recordId, linkId) => {
+    const key = recordLinkKey(tableId, recordId);
+    try {
+      await deleteRecordLinkApi(linkId);
+      set((state) => ({
+        linksByRecord: {
+          ...state.linksByRecord,
+          [key]: (state.linksByRecord[key] ?? []).filter((link) => link.id !== linkId)
+        },
+        error: null
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to remove linked record reference") });
+    }
+  },
+
+  loadRecordOptions: async (tableId, query) => {
+    set({ recordOptionsLoading: true });
+    try {
+      const options = await listRecordOptionsApi(tableId, query);
+      set((state) => ({
+        recordOptionsByTable: {
+          ...state.recordOptionsByTable,
+          [tableId]: options
+        },
+        recordOptionsLoading: false,
+        error: null
+      }));
+    } catch (error) {
+      set({
+        recordOptionsLoading: false,
+        error: toErrorMessage(error, "Failed to load records for linking")
+      });
+    }
+  },
+
   loadRecordAttachments: async (tableId, recordId) => {
     const key = recordAttachmentKey(tableId, recordId);
     set({ attachmentsLoading: true });
     try {
-      const attachments = await listRecordAttachments(tableId, recordId);
+      const attachments = await listRecordAttachmentsApi(tableId, recordId);
       set((state) => ({
         attachmentsByRecord: {
           ...state.attachmentsByRecord,
@@ -421,7 +534,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   attachFileToRecord: async (tableId, recordId) => {
     const key = recordAttachmentKey(tableId, recordId);
     try {
-      const attachment = await attachFileToRecord(tableId, recordId);
+      const attachment = await attachFileToRecordApi(tableId, recordId);
       if (!attachment) {
         return;
       }
@@ -441,7 +554,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   deleteAttachment: async (tableId, recordId, attachmentId) => {
     const key = recordAttachmentKey(tableId, recordId);
     try {
-      await deleteAttachment(attachmentId);
+      await deleteAttachmentApi(attachmentId);
       set((state) => ({
         attachmentsByRecord: {
           ...state.attachmentsByRecord,
@@ -458,7 +571,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   openAttachment: async (attachmentId) => {
     try {
-      await openAttachment(attachmentId);
+      await openAttachmentApi(attachmentId);
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to open attachment") });
     }

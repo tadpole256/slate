@@ -61,6 +61,10 @@ pub fn run() {
             commands::attach_file_to_record,
             commands::delete_attachment,
             commands::open_attachment,
+            commands::list_record_links,
+            commands::create_record_link,
+            commands::delete_record_link,
+            commands::list_record_options,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate application");

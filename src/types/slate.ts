@@ -64,3 +64,20 @@ export interface RecordAttachment {
   size_bytes: number | null;
   created_at: string;
 }
+
+export interface RecordOption {
+  record_id: string;
+  label: string;
+}
+
+export interface RecordLink {
+  id: string;
+  from_table_id: string;
+  from_record_id: string;
+  to_table_id: string;
+  to_record_id: string;
+  to_table_name: string;
+  to_record_label: string;
+  link_type: string;
+  created_at: string;
+}

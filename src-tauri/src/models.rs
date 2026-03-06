@@ -58,3 +58,22 @@ pub struct RecordAttachment {
     pub size_bytes: Option<i64>,
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordOption {
+    pub record_id: String,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordLink {
+    pub id: String,
+    pub from_table_id: String,
+    pub from_record_id: String,
+    pub to_table_id: String,
+    pub to_record_id: String,
+    pub to_table_name: String,
+    pub to_record_label: String,
+    pub link_type: String,
+    pub created_at: String,
+}

@@ -15,6 +15,10 @@ export default function App() {
     tables,
     fieldsByTable,
     recordsByTable,
+    linksByRecord,
+    recordOptionsByTable,
+    linksLoading,
+    recordOptionsLoading,
     attachmentsByRecord,
     attachmentsLoading,
     activeTableId,
@@ -39,6 +43,10 @@ export default function App() {
     updateRecordCell,
     updateRecordValues,
     deleteRecord,
+    loadRecordLinks,
+    createRecordLink,
+    deleteRecordLink,
+    loadRecordOptions,
     loadRecordAttachments,
     attachFileToRecord,
     deleteAttachment,
@@ -54,6 +62,8 @@ export default function App() {
     activeTableId && selectedRecordId
       ? attachmentsByRecord[`${activeTableId}:${selectedRecordId}`] ?? []
       : [];
+  const selectedRecordLinks =
+    activeTableId && selectedRecordId ? linksByRecord[`${activeTableId}:${selectedRecordId}`] ?? [] : [];
 
   const openLink = (value: string) => {
     const trimmed = value.trim();
@@ -89,6 +99,14 @@ export default function App() {
 
     void loadRecordAttachments(activeTableId, selectedRecordId);
   }, [activeTableId, selectedRecordId, loadRecordAttachments]);
+
+  useEffect(() => {
+    if (!activeTableId || !selectedRecordId) {
+      return;
+    }
+
+    void loadRecordLinks(activeTableId, selectedRecordId);
+  }, [activeTableId, selectedRecordId, loadRecordLinks]);
 
   return (
     <>
@@ -187,6 +205,30 @@ export default function App() {
               }
             }}
             onOpenLink={openLink}
+            tables={tables}
+            links={selectedRecordLinks}
+            linksLoading={linksLoading}
+            recordOptionsByTable={recordOptionsByTable}
+            recordOptionsLoading={recordOptionsLoading}
+            onLoadRecordOptions={(tableId, query) => {
+              void loadRecordOptions(tableId, query);
+            }}
+            onCreateRecordLink={(toTableId, toRecordId) => {
+              if (activeTableId && selectedRecordId) {
+                void createRecordLink(activeTableId, selectedRecordId, toTableId, toRecordId);
+              }
+            }}
+            onDeleteRecordLink={(linkId) => {
+              if (activeTableId && selectedRecordId) {
+                void deleteRecordLink(activeTableId, selectedRecordId, linkId);
+              }
+            }}
+            onOpenLinkedRecord={(toTableId, toRecordId) => {
+              void (async () => {
+                await setActiveTable(toTableId);
+                selectRecord(toRecordId);
+              })();
+            }}
             onDeleteRecord={() => {
               if (activeTableId && selectedRecordId && window.confirm("Delete this record?")) {
                 void deleteRecord(activeTableId, selectedRecordId);

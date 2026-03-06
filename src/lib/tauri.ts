@@ -5,6 +5,8 @@ import type {
   FieldMutationInput,
   InitResponse,
   RecordAttachment,
+  RecordLink,
+  RecordOption,
   RecordMutationInput,
   RecordRow,
   RecordUpdateInput,
@@ -108,4 +110,38 @@ export async function deleteAttachment(attachmentId: string): Promise<void> {
 
 export async function openAttachment(attachmentId: string): Promise<void> {
   return invoke<void>("open_attachment", { attachmentId });
+}
+
+export async function listRecordLinks(tableId: string, recordId: string): Promise<RecordLink[]> {
+  return invoke<RecordLink[]>("list_record_links", {
+    tableId,
+    recordId
+  });
+}
+
+export async function createRecordLink(
+  fromTableId: string,
+  fromRecordId: string,
+  toTableId: string,
+  toRecordId: string,
+  linkType = "related"
+): Promise<RecordLink> {
+  return invoke<RecordLink>("create_record_link", {
+    fromTableId,
+    fromRecordId,
+    toTableId,
+    toRecordId,
+    linkType
+  });
+}
+
+export async function deleteRecordLink(linkId: string): Promise<void> {
+  return invoke<void>("delete_record_link", { linkId });
+}
+
+export async function listRecordOptions(tableId: string, query?: string): Promise<RecordOption[]> {
+  return invoke<RecordOption[]>("list_record_options", {
+    tableId,
+    query: query?.trim() || null
+  });
 }

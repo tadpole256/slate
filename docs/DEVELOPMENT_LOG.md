@@ -121,3 +121,25 @@
 - `npm run build` passed.
 - `cargo test --manifest-path src-tauri/Cargo.toml` passed.
 - `npm run tauri -- dev` startup check passed.
+
+### Session 5
+
+#### Feature Work: Cross-Table Record Linking
+- Implemented generalized record linking UI in the record detail panel:
+  - link current record to any record in any table
+  - list linked records with target table context
+  - remove linked references
+  - click/open linked record and jump to target table + record
+- Implemented backend link command surface:
+  - `list_record_links`
+  - `create_record_link`
+  - `delete_record_link`
+  - `list_record_options` (record picker options per table, using primary field labels)
+- Added link cleanup on deletion:
+  - when deleting a record, related links are removed
+  - when deleting a table, links involving that table are removed
+
+#### Verification
+- `npm run build` passed.
+- `cargo test --manifest-path src-tauri/Cargo.toml` passed.
+- `npm run tauri -- dev` startup check passed.

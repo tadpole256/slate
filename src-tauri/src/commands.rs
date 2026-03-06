@@ -3,8 +3,17 @@ use std::collections::HashMap;
 use serde_json::Value;
 use tauri::State;
 
-use crate::models::{AppField, AppTable, InitResponse, RecordAttachment, RecordRow, TableSnapshot};
-use crate::services::{attachment_service, metadata_service, record_service, table_service};
+use crate::models::{
+    AppField,
+    AppTable,
+    InitResponse,
+    RecordAttachment,
+    RecordLink,
+    RecordOption,
+    RecordRow,
+    TableSnapshot,
+};
+use crate::services::{attachment_service, link_service, metadata_service, record_service, table_service};
 use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
@@ -68,6 +77,7 @@ pub fn delete_table(state: State<'_, AppState>, table_id: String) -> CommandResu
     let attachments_dir = state.attachments_dir.clone();
     with_conn(&state, |conn| {
         attachment_service::delete_attachments_for_table(conn, &attachments_dir, &table_id)?;
+        link_service::delete_links_for_table(conn, &table_id)?;
         table_service::delete_table(conn, &table_id)
     })
 }
@@ -126,6 +136,7 @@ pub fn delete_record(
     let attachments_dir = state.attachments_dir.clone();
     with_conn(&state, |conn| {
         attachment_service::delete_attachments_for_record(conn, &attachments_dir, &table_id, &record_id)?;
+        link_service::delete_links_for_record(conn, &table_id, &record_id)?;
         record_service::delete_record(conn, &table_id, &record_id)
     })
 }
@@ -167,4 +178,48 @@ pub fn open_attachment(state: State<'_, AppState>, attachment_id: String) -> Com
     with_conn(&state, |conn| {
         attachment_service::open_attachment(conn, &attachments_dir, &attachment_id)
     })
+}
+
+#[tauri::command]
+pub fn list_record_links(
+    state: State<'_, AppState>,
+    table_id: String,
+    record_id: String,
+) -> CommandResult<Vec<RecordLink>> {
+    with_conn(&state, |conn| link_service::list_record_links(conn, &table_id, &record_id))
+}
+
+#[tauri::command]
+pub fn create_record_link(
+    state: State<'_, AppState>,
+    from_table_id: String,
+    from_record_id: String,
+    to_table_id: String,
+    to_record_id: String,
+    link_type: Option<String>,
+) -> CommandResult<RecordLink> {
+    with_conn(&state, |conn| {
+        link_service::create_record_link(
+            conn,
+            &from_table_id,
+            &from_record_id,
+            &to_table_id,
+            &to_record_id,
+            link_type.as_deref(),
+        )
+    })
+}
+
+#[tauri::command]
+pub fn delete_record_link(state: State<'_, AppState>, link_id: String) -> CommandResult<()> {
+    with_conn(&state, |conn| link_service::delete_record_link(conn, &link_id))
+}
+
+#[tauri::command]
+pub fn list_record_options(
+    state: State<'_, AppState>,
+    table_id: String,
+    query: Option<String>,
+) -> CommandResult<Vec<RecordOption>> {
+    with_conn(&state, |conn| link_service::list_record_options(conn, &table_id, query.as_deref()))
 }
