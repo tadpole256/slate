@@ -1,0 +1,26 @@
+[package]
+name = "slate"
+version = "0.1.0"
+description = "Slate local-first desktop workspace"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "slate_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+
+[dependencies]
+anyhow = "1.0.95"
+rusqlite = { version = "0.31.0", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.10.3", features = [] }
+thiserror = "2.0.11"
+uuid = { version = "1.11.0", features = ["v4", "fast-rng"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
