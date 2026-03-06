@@ -42,6 +42,28 @@ pub fn create_table(conn: &Connection, display_name: &str) -> Result<AppTable> {
     create_table_with_fields(conn, display_name, &seed_fields)
 }
 
+pub fn repair_all_table_storage(conn: &Connection) -> Result<()> {
+    let tables = metadata_service::list_tables(conn)?;
+    for table in tables {
+        repair_table_storage(conn, &table.id)?;
+    }
+    Ok(())
+}
+
+pub fn repair_table_storage(conn: &Connection, table_id: &str) -> Result<()> {
+    let table = metadata_service::get_table(conn, table_id)?;
+    schema_service::create_data_table(conn, &table.storage_name)?;
+
+    let fields = metadata_service::list_fields(conn, table_id)?;
+    for field in fields {
+        if !schema_service::data_column_exists(conn, &table.storage_name, &field.column_key)? {
+            schema_service::add_column(conn, &table.storage_name, &field.column_key, &field.field_type)?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn create_table_with_fields(
     conn: &Connection,
     display_name: &str,
@@ -142,6 +164,7 @@ pub fn create_field(
         return Err(anyhow!("Unsupported field type"));
     }
 
+    repair_table_storage(conn, table_id)?;
     let table = metadata_service::get_table(conn, table_id)?;
     let field_name = normalized_name(display_name)?;
 
@@ -187,6 +210,7 @@ pub fn rename_field(conn: &Connection, field_id: &str, display_name: &str) -> Re
 
 pub fn delete_field(conn: &Connection, field_id: &str) -> Result<()> {
     let field = metadata_service::get_field(conn, field_id)?;
+    repair_table_storage(conn, &field.table_id)?;
     let table = metadata_service::get_table(conn, &field.table_id)?;
 
     let field_count: i64 = conn.query_row(

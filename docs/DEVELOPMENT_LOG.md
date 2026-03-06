@@ -73,3 +73,25 @@
 #### Notes
 - A broad `cargo` lockfile was generated for native dependencies (`src-tauri/Cargo.lock`) during the first successful Rust build.
 - `link_service::create_link` is currently marked `#[allow(dead_code)]` because relationship UI wiring is still intentionally deferred.
+
+### Session 3
+
+#### User-Reported Fix
+- Issue: UI showed `Failed to create column` when adding a field.
+
+#### Changes
+- Added backend self-healing for metadata/data-table drift:
+  - new schema helpers to detect table/column existence
+  - new `repair_table_storage` and `repair_all_table_storage`
+  - automatic repair run during DB init
+  - record and field operations now call repair guard before mutating/querying
+- Improved frontend error extraction in Zustand store:
+  - backend string/object errors now surface the actual message instead of generic fallback text.
+- Expanded backend tests to simulate corruption:
+  - dropped physical table for a logical table
+  - verified `create_field` auto-repairs storage and succeeds.
+
+#### Verification
+- `npm run build` passed.
+- `cargo test --manifest-path src-tauri/Cargo.toml` passed.
+- `npm run tauri -- dev` startup check passed.

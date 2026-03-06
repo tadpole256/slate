@@ -85,6 +85,22 @@ function updateLocalRecord(
   });
 }
 
+function toErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   loading: true,
   error: null,
@@ -116,7 +132,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     } catch (error) {
       set({
         loading: false,
-        error: error instanceof Error ? error.message : "Failed to initialize Slate"
+        error: toErrorMessage(error, "Failed to initialize Slate")
       });
     }
   },
@@ -150,7 +166,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         error: null
       }));
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to load table" });
+      set({ error: toErrorMessage(error, "Failed to load table") });
     }
   },
 
@@ -187,7 +203,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       }));
       await get().refreshActiveTable();
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to create table" });
+      set({ error: toErrorMessage(error, "Failed to create table") });
     }
   },
 
@@ -203,7 +219,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         tables: state.tables.map((table) => (table.id === tableId ? updated : table))
       }));
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to rename table" });
+      set({ error: toErrorMessage(error, "Failed to rename table") });
     }
   },
 
@@ -233,7 +249,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         await get().refreshActiveTable();
       }
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to delete table" });
+      set({ error: toErrorMessage(error, "Failed to delete table") });
     }
   },
 
@@ -248,7 +264,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set({ addColumnModalOpen: false });
       await get().refreshActiveTable();
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to create column" });
+      set({ error: toErrorMessage(error, "Failed to create column") });
     }
   },
 
@@ -272,7 +288,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         };
       });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to rename column" });
+      set({ error: toErrorMessage(error, "Failed to rename column") });
     }
   },
 
@@ -290,7 +306,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       await deleteField(fieldId);
       await get().refreshActiveTable();
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to delete column" });
+      set({ error: toErrorMessage(error, "Failed to delete column") });
     }
   },
 
@@ -308,7 +324,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         selectedRecordId: record.record_id
       }));
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to create record" });
+      set({ error: toErrorMessage(error, "Failed to create record") });
     }
   },
 
@@ -336,7 +352,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         }
       }));
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to update record" });
+      set({ error: toErrorMessage(error, "Failed to update record") });
       await get().refreshActiveTable();
     }
   },
@@ -354,7 +370,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         selectedRecordId: state.selectedRecordId === recordId ? null : state.selectedRecordId
       }));
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to delete record" });
+      set({ error: toErrorMessage(error, "Failed to delete record") });
     }
   }
 }));

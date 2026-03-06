@@ -71,6 +71,7 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
     )?;
 
     seed_starter_tables(conn)?;
+    table_service::repair_all_table_storage(conn)?;
 
     Ok(())
 }

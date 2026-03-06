@@ -3,6 +3,15 @@ use rusqlite::Connection;
 
 use crate::db::{quote_ident, to_sql_column_type};
 
+pub fn data_table_exists(conn: &Connection, storage_name: &str) -> Result<bool> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(1) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+        [storage_name],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
+}
+
 pub fn create_data_table(conn: &Connection, storage_name: &str) -> Result<()> {
     let storage = quote_ident(storage_name);
     let sql = format!(
@@ -27,6 +36,25 @@ pub fn add_column(conn: &Connection, storage_name: &str, column_key: &str, field
     let sql = format!("ALTER TABLE {} ADD COLUMN {} {}", storage, column, sql_type);
     conn.execute(&sql, [])?;
     Ok(())
+}
+
+pub fn data_column_exists(conn: &Connection, storage_name: &str, column_key: &str) -> Result<bool> {
+    if !data_table_exists(conn, storage_name)? {
+        return Ok(false);
+    }
+
+    let pragma_sql = format!("PRAGMA table_info({})", quote_ident(storage_name));
+    let mut stmt = conn.prepare(&pragma_sql)?;
+    let mut rows = stmt.query([])?;
+
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column_key {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 pub fn drop_column(conn: &Connection, storage_name: &str, column_key: &str) -> Result<()> {

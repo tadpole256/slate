@@ -58,6 +58,13 @@ fn backend_crud_search_and_links_work() {
     let people = table_service::create_table(&conn, "People").expect("create table");
     let people_storage = people.storage_name.clone();
 
+    // Simulate an out-of-sync workspace where metadata exists but the physical table is missing.
+    conn.execute(
+        &format!("DROP TABLE IF EXISTS \"{}\"", people_storage),
+        [],
+    )
+    .expect("drop physical table to simulate corruption");
+
     let email_field = table_service::create_field(&conn, &people.id, "Email", "text")
         .expect("create email field");
     let active_field = table_service::create_field(&conn, &people.id, "Active", "checkbox")

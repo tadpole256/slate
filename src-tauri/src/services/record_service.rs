@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::db::{quote_ident, now_iso};
 use crate::models::{AppField, RecordRow};
-use crate::services::{metadata_service, search_service};
+use crate::services::{metadata_service, search_service, table_service};
 
 fn json_to_sql(value: Option<&Value>, field_type: &str) -> SqlValue {
     match value {
@@ -63,6 +63,7 @@ fn row_to_record(row: &Row<'_>, fields: &[AppField]) -> rusqlite::Result<RecordR
 }
 
 pub fn list_records(conn: &Connection, table_id: &str, query: Option<&str>) -> Result<Vec<RecordRow>> {
+    table_service::repair_table_storage(conn, table_id)?;
     let table = metadata_service::get_table(conn, table_id)?;
     let fields = metadata_service::list_fields(conn, table_id)?;
 
@@ -111,6 +112,7 @@ pub fn create_record(
     table_id: &str,
     values: &HashMap<String, Value>,
 ) -> Result<RecordRow> {
+    table_service::repair_table_storage(conn, table_id)?;
     let table = metadata_service::get_table(conn, table_id)?;
     let fields = metadata_service::list_fields(conn, table_id)?;
     let now = now_iso();
@@ -153,6 +155,7 @@ pub fn update_record(
     record_id: &str,
     values: &HashMap<String, Value>,
 ) -> Result<RecordRow> {
+    table_service::repair_table_storage(conn, table_id)?;
     let table = metadata_service::get_table(conn, table_id)?;
     let fields = metadata_service::list_fields(conn, table_id)?;
 
@@ -193,6 +196,7 @@ pub fn update_record(
 }
 
 pub fn delete_record(conn: &Connection, table_id: &str, record_id: &str) -> Result<()> {
+    table_service::repair_table_storage(conn, table_id)?;
     let table = metadata_service::get_table(conn, table_id)?;
     let sql = format!("DELETE FROM {} WHERE record_id = ?", quote_ident(&table.storage_name));
     conn.execute(&sql, [record_id])?;
@@ -200,6 +204,7 @@ pub fn delete_record(conn: &Connection, table_id: &str, record_id: &str) -> Resu
 }
 
 pub fn get_record(conn: &Connection, table_id: &str, record_id: &str) -> Result<RecordRow> {
+    table_service::repair_table_storage(conn, table_id)?;
     let table = metadata_service::get_table(conn, table_id)?;
     let fields = metadata_service::list_fields(conn, table_id)?;
 
