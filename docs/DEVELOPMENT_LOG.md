@@ -143,3 +143,13 @@
 - `npm run build` passed.
 - `cargo test --manifest-path src-tauri/Cargo.toml` passed.
 - `npm run tauri -- dev` startup check passed.
+
+### Session 6
+
+#### Launch Reliability
+- Added startup timeout wrapper around `init_app` invoke in frontend store initialization.
+- Prevents indefinite `Loading Slate...` state when backend IPC does not respond.
+- New timeout message: `Slate backend did not respond during startup. Restart the app and try again.`
+
+#### Verification
+- `npm run build` passed.

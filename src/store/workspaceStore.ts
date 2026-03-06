@@ -144,6 +144,24 @@ function toErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(message));
+        }, ms);
+      })
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   loading: true,
   error: null,
@@ -166,7 +184,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const init = await initApp();
+      const init = await withTimeout(
+        initApp(),
+        8000,
+        "Slate backend did not respond during startup. Restart the app and try again."
+      );
       const tables = init.tables;
 
       set({
