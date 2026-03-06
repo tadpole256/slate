@@ -38,23 +38,25 @@ pub fn add_column(conn: &Connection, storage_name: &str, column_key: &str, field
     Ok(())
 }
 
-pub fn data_column_exists(conn: &Connection, storage_name: &str, column_key: &str) -> Result<bool> {
+pub fn get_existing_columns(
+    conn: &Connection,
+    storage_name: &str,
+) -> Result<std::collections::HashSet<String>> {
     if !data_table_exists(conn, storage_name)? {
-        return Ok(false);
+        return Ok(std::collections::HashSet::new());
     }
 
     let pragma_sql = format!("PRAGMA table_info({})", quote_ident(storage_name));
     let mut stmt = conn.prepare(&pragma_sql)?;
     let mut rows = stmt.query([])?;
+    let mut columns = std::collections::HashSet::new();
 
     while let Some(row) = rows.next()? {
         let name: String = row.get(1)?;
-        if name == column_key {
-            return Ok(true);
-        }
+        columns.insert(name);
     }
 
-    Ok(false)
+    Ok(columns)
 }
 
 pub fn drop_column(conn: &Connection, storage_name: &str, column_key: &str) -> Result<()> {

@@ -153,3 +153,25 @@
 
 #### Verification
 - `npm run build` passed.
+
+### Session 7
+
+#### Startup Hang Mitigation
+- Added a UI-level startup watchdog in `App.tsx` to force-exit loading state after 12s.
+- Added `forceStartupFailure` store action to safely stop loading and surface a clear error.
+- Loading overlay now hides when an error is present (`loading && !error`) so startup failures are visible.
+
+#### Verification
+- `npm run build` passed.
+- `npm run tauri -- dev` startup check passed.
+
+### Session 8
+
+#### Local State Reset
+- Backed up existing app DB to:
+  - `~/Library/Application Support/com.tadpole.slate/slate.db.backup-20260306-123618`
+- Reset active DB by removing `slate.db` (and sidecars).
+- Verified fresh DB re-created on launch and seeded (`app_tables` count = 4).
+
+#### Verification
+- `npm run tauri -- dev` startup check passed after reset.

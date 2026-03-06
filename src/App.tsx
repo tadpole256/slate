@@ -27,6 +27,7 @@ export default function App() {
     createTableModalOpen,
     addColumnModalOpen,
     initialize,
+    forceStartupFailure,
     setActiveTable,
     refreshActiveTable,
     setSearchQuery,
@@ -79,6 +80,20 @@ export default function App() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    if (!loading) {
+      return;
+    }
+
+    const watchdog = setTimeout(() => {
+      forceStartupFailure(
+        "Slate startup is taking too long. Try restarting the app. If this repeats, remove the local slate.db file in your app data directory."
+      );
+    }, 12000);
+
+    return () => clearTimeout(watchdog);
+  }, [loading, forceStartupFailure]);
 
   useEffect(() => {
     if (!activeTableId) {
@@ -256,7 +271,12 @@ export default function App() {
         }}
       />
 
-      {loading ? <div className="loading-overlay">Loading Slate...</div> : null}
+      {loading && !error ? (
+        <div className="loading-overlay">
+          <div className="loading-spinner" aria-hidden="true" />
+          <span>Loading Slate...</span>
+        </div>
+      ) : null}
       {error ? <div className="error-banner">{error}</div> : null}
     </>
   );

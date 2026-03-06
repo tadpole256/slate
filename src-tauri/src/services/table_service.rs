@@ -55,8 +55,14 @@ pub fn repair_table_storage(conn: &Connection, table_id: &str) -> Result<()> {
     schema_service::create_data_table(conn, &table.storage_name)?;
 
     let fields = metadata_service::list_fields(conn, table_id)?;
+    if fields.is_empty() {
+        return Ok(());
+    }
+
+    // One PRAGMA call for all fields, down from one per field
+    let existing_columns = schema_service::get_existing_columns(conn, &table.storage_name)?;
     for field in fields {
-        if !schema_service::data_column_exists(conn, &table.storage_name, &field.column_key)? {
+        if !existing_columns.contains(&field.column_key) {
             schema_service::add_column(conn, &table.storage_name, &field.column_key, &field.field_type)?;
         }
     }
@@ -210,7 +216,6 @@ pub fn rename_field(conn: &Connection, field_id: &str, display_name: &str) -> Re
 
 pub fn delete_field(conn: &Connection, field_id: &str) -> Result<()> {
     let field = metadata_service::get_field(conn, field_id)?;
-    repair_table_storage(conn, &field.table_id)?;
     let table = metadata_service::get_table(conn, &field.table_id)?;
 
     let field_count: i64 = conn.query_row(

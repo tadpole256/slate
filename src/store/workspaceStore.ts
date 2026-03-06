@@ -49,6 +49,7 @@ interface WorkspaceState {
   createTableModalOpen: boolean;
   addColumnModalOpen: boolean;
   initialize: () => Promise<void>;
+  forceStartupFailure: (message: string) => void;
   setActiveTable: (tableId: string) => Promise<void>;
   refreshActiveTable: () => Promise<void>;
   setSearchQuery: (query: string) => void;
@@ -206,6 +207,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         error: toErrorMessage(error, "Failed to initialize Slate")
       });
     }
+  },
+
+  forceStartupFailure: (message) => {
+    set((state) => {
+      if (!state.loading) {
+        return state;
+      }
+      return {
+        ...state,
+        loading: false,
+        error: message
+      };
+    });
   },
 
   setActiveTable: async (tableId) => {
