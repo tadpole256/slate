@@ -95,3 +95,29 @@
 - `npm run build` passed.
 - `cargo test --manifest-path src-tauri/Cargo.toml` passed.
 - `npm run tauri -- dev` startup check passed.
+
+### Session 4
+
+#### Feature Work
+- Added working Link fields in UI:
+  - Link field type is now available when adding columns.
+  - Link cells now include an `Open` action in the grid.
+  - Link fields in the detail panel include an `Open Link` action.
+- Added record-level attachments (alternative to attachment columns):
+  - New SQLite metadata table: `record_attachments`.
+  - New backend attachment service with native file picker, open, remove, and list behavior.
+  - Attachment cleanup on record/table delete.
+  - New detail-panel attachment section with `Attach File`, `Open`, and delete controls.
+
+#### Backend Additions
+- New service: `src-tauri/src/services/attachment_service.rs`.
+- New commands:
+  - `list_record_attachments`
+  - `attach_file_to_record`
+  - `delete_attachment`
+  - `open_attachment`
+
+#### Verification
+- `npm run build` passed.
+- `cargo test --manifest-path src-tauri/Cargo.toml` passed.
+- `npm run tauri -- dev` startup check passed.
