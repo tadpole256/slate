@@ -1,6 +1,6 @@
 # 🟦 Slate
 
-> **Calm leadership for your complex data.**
+> **A local "stack of spreadsheets" database tool.**
 > 
 > *A local-first, extremely fast desktop workspace for structured personal data. Created by [Anthony McCloskey](https://anthonymccloskey.com).*
 
