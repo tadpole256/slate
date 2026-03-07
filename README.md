@@ -1,99 +1,143 @@
-# 🟦 Slate
+# Slate
 
-> **A local "stack of spreadsheets" database tool.**
-> 
-> *A local-first, extremely fast desktop workspace for structured personal data. Created by [Anthony McCloskey](https://anthonymccloskey.com).*
+Local-first desktop workspace for structured personal data.
 
----
+Slate is a single-user app that feels like a stack of relational spreadsheets, backed by a local SQLite database. It is designed for fast personal workflows like contacts, research, projects, and notes.
 
-**Slate** bridges the gap between simple note-taking apps and heavy, cloud-first spreadsheet databases. Think of it as a stack of relational spreadsheets powered by a real SQLite engine underneath, but wrapped in a stunning, minimal desktop interface.
+Created by [Anthony McCloskey](https://anthonymccloskey.com).
 
-It is intentionally:
-- 🔒 **Single-user & Offline:** Your data stays on your machine.
-- ⚡ **Extremely Fast:** Spreadsheet-like editing speed with native performance.
-- 🗂️ **Metadata-driven:** Highly structured without becoming bloated.
-- 🚫 **Zero Overhead:** No auth, no cloud sync, no subscriptions.
+## Status
 
-Slate is built for personal knowledge and data workflows: managing contacts, structuring research, tracking complex projects, and logging ideas.
+- MVP in active development
+- Primary development environment: macOS
+- Local-only data model (no auth, no cloud sync, no subscriptions)
 
----
+## Features
 
-## ✨ Features
+### Available now
 
-- **Dark-Themed Workspace:** A beautiful, minimal 3-panel UI with a focus on typography and ease of use.
-- **Relational Integrity:** Create, rename, and manage tables and columns securely powered by a local SQLite database.
-- **Rich Data Types:** Support for `text`, `long_text`, `date`, `checkbox`, and more.
-- **Grid & Record Views:** Fast editable grid cells alongside a dedicated record detail panel.
-- **Instant Search:** Lightning-fast local search within any active table.
-- **Generalized Cross-Table Links:** A powerful architecture for creating relational links between any records across different tables.
+- Local SQLite-backed tables and records
+- Table CRUD: create, rename, delete
+- Field CRUD: create, rename, delete
+- Field types: `text`, `long_text`, `date`, `checkbox`, `link`
+- Grid editing + record detail panel editing
+- Per-table search
+- Cross-table record linking
+- Record attachments (attach/open/remove files)
 
-## 🛠️ Stack
+### Planned next
 
-Slate combines modern web technology with native performance:
-- **Desktop Shell:** [Tauri 2](https://v2.tauri.app/)
-- **Frontend:** [React](https://react.dev/) + TypeScript + [Vite](https://vitejs.dev/) + [Zustand](https://zustand-demo.pmnd.rs/) for state management.
-- **Icons:** [Lucide](https://lucide.dev/)
-- **Database:** SQLite (via `rusqlite`, bundled locally)
+- Saved views and richer filtering/sorting
+- Formula/derived field exploration
+- UX polish and additional keyboard shortcuts
 
----
+## Stack
 
-## 🚀 Quick Start
+- Desktop shell: [Tauri 2](https://v2.tauri.app/)
+- Frontend: [React](https://react.dev/) + TypeScript + [Vite](https://vitejs.dev/) + [Zustand](https://zustand-demo.pmnd.rs/)
+- Database: SQLite via `rusqlite` (bundled)
+- Icons: [Lucide](https://lucide.dev/)
+
+## Quick Start
 
 ### Prerequisites
+
 - Node.js 20+
 - npm 10+
 - Rust toolchain (`rustup`, `cargo`, `rustc`)
+- Tauri system dependencies for your OS: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-*(If Rust was just installed, be sure to open a new shell or run `source $HOME/.cargo/env`)*
+If Rust was just installed, open a new shell or run:
+
+```bash
+source "$HOME/.cargo/env"
+```
 
 ### Install
 
 ```bash
-# Clone the repository and install dependencies
 git clone https://github.com/tadpole256/slate.git
 cd slate
 npm install
 ```
 
-### Run (Development)
-
-Launch the native desktop application with hot-reloading:
+### Run in development
 
 ```bash
 npm run tauri -- dev
 ```
 
-### Build (Production)
-
-Compile the application into a standalone macOS `.app` (or your respective OS executable):
+### Build production bundle
 
 ```bash
 npm run tauri build
 ```
-*The output bundle will be placed in `src-tauri/target/release/bundle/`.*
 
----
+Build output is written to `src-tauri/target/release/bundle/`.
 
-## 🤝 Contributing & Feedback
+### Verify locally
 
-**Feedback and contributions are highly welcome!**
+```bash
+npm run build
+cargo test --manifest-path src-tauri/Cargo.toml
+```
 
-Whether you've found a bug, have an idea for a cool new feature, or want to directly contribute code, we'd love your help in making Slate the best local-first workspace out there.
+## Data Location and Backups
 
-- 🐛 **Found a bug?** Open an [Issue](https://github.com/tadpole256/slate/issues).
-- 💡 **Have a feature request?** Start a discussion or open an issue.
-- 💻 **Want to contribute code?** 
+Slate stores data in your Tauri app data directory under app id `com.tadpole.slate`.
+
+- Database file: `slate.db`
+- Attachment directory: `attachments/`
+
+macOS default path:
+
+```text
+~/Library/Application Support/com.tadpole.slate/
+```
+
+### Backup
+
+1. Fully quit Slate.
+2. Copy `slate.db` and `attachments/` to a backup location.
+3. Keep both together so attachment references stay valid.
+
+### Restore
+
+1. Fully quit Slate.
+2. Replace `slate.db` and `attachments/` with your backup copies.
+3. Reopen Slate.
+
+## Troubleshooting
+
+- `cargo: command not found`
+  Install Rust with `rustup`, then run `source "$HOME/.cargo/env"`.
+- App hangs on startup
+  Restart the app. If it persists, move the current DB directory aside and relaunch to regenerate a fresh local DB.
+- Dev app does not start
+  Re-run `npm install`, then `npm run tauri -- dev` and check Tauri prerequisite packages for your OS.
+
+## Project Docs
+
+- Architecture and delivery plan: [docs/SLATE_MVP_PLAN.md](./docs/SLATE_MVP_PLAN.md)
+- Session-by-session implementation history: [docs/DEVELOPMENT_LOG.md](./docs/DEVELOPMENT_LOG.md)
+
+## Contributing
+
+Feedback and contributions are welcome.
+
+- Bugs and feature requests: [GitHub Issues](https://github.com/tadpole256/slate/issues)
+- Code contributions:
   1. Fork the repository.
-  2. Create a feature branch (`git checkout -b feature/my-new-feature`).
-  3. Commit your changes.
-  4. Ensure backend tests pass (`cargo test --manifest-path src-tauri/Cargo.toml`).
-  5. Open a Pull Request!
+  2. Create a branch: `git checkout -b feature/my-new-feature`
+  3. Commit changes.
+  4. Run: `npm run build` and `cargo test --manifest-path src-tauri/Cargo.toml`
+  5. Open a pull request.
 
-If you are just exploring the code, standard React architecture applies in `src/`, and all Tauri/SQLite interactions live safely in `src-tauri/`.
+Code layout:
 
-## 📜 License
+- Frontend (React/TypeScript): `src/`
+- Tauri/Rust/SQLite backend: `src-tauri/`
 
-Slate is free and open-source software, released under the **[GNU General Public License v3.0](./LICENSE)**. 
+## License
 
----
-*Built with ❤️ for a calmer, more organized digital life.*
+Slate is released under the [GNU General Public License v3.0](./LICENSE).
