@@ -1,203 +1,99 @@
-# Slate
+# 🟦 Slate
 
-**Slate** is a local-first desktop workspace for structured personal data.
-Think of it as a stack of spreadsheets with a real SQLite engine underneath.
+> **Calm leadership for your complex data.**
+> 
+> *A local-first, extremely fast desktop workspace for structured personal data. Created by [Anthony McCloskey](https://anthonymccloskey.com).*
+
+---
+
+**Slate** bridges the gap between simple note-taking apps and heavy, cloud-first spreadsheet databases. Think of it as a stack of relational spreadsheets powered by a real SQLite engine underneath, but wrapped in a stunning, minimal desktop interface.
 
 It is intentionally:
-- single-user
-- offline/local-first
-- metadata-driven
-- extensible without becoming bloated
+- 🔒 **Single-user & Offline:** Your data stays on your machine.
+- ⚡ **Extremely Fast:** Spreadsheet-like editing speed with native performance.
+- 🗂️ **Metadata-driven:** Highly structured without becoming bloated.
+- 🚫 **Zero Overhead:** No auth, no cloud sync, no subscriptions.
 
-Slate is built for personal knowledge/data workflows like contacts, notes, projects, and ideas.
+Slate is built for personal knowledge and data workflows: managing contacts, structuring research, tracking complex projects, and logging ideas.
 
-## Why Slate
+---
 
-Most tools are either:
-- too simple (notes with weak structure), or
-- too heavy (cloud-first, team-first systems)
+## ✨ Features
 
-Slate sits in the middle:
-- spreadsheet-like editing speed
-- relational storage integrity
-- polished desktop UX
-- no auth, no cloud, no account overhead
+- **Dark-Themed Workspace:** A beautiful, minimal 3-panel UI with a focus on typography and ease of use.
+- **Relational Integrity:** Create, rename, and manage tables and columns securely powered by a local SQLite database.
+- **Rich Data Types:** Support for `text`, `long_text`, `date`, `checkbox`, and more.
+- **Grid & Record Views:** Fast editable grid cells alongside a dedicated record detail panel.
+- **Instant Search:** Lightning-fast local search within any active table.
+- **Generalized Cross-Table Links:** A powerful architecture for creating relational links between any records across different tables.
 
-## Current MVP Status
+## 🛠️ Stack
 
-Implemented today:
-- [x] Dark-themed 3-panel workspace + top bar
-- [x] Sidebar table list
-- [x] Create / rename / delete tables
-- [x] Create / rename / delete columns
-- [x] Field types: `text`, `long_text`, `date`, `checkbox`
-- [x] Editable grid cells
-- [x] Add / edit / delete records
-- [x] Row selection + detail panel editing
-- [x] Search within current table
-- [x] SQLite metadata layer (`app_tables`, `app_fields`, etc.)
-- [x] Generalized cross-table link architecture (`record_links`)
-- [x] First-launch starter tables (Contacts, Notes, Projects, Ideas)
-- [x] Backend tests for init + CRUD + search + links
+Slate combines modern web technology with native performance:
+- **Desktop Shell:** [Tauri 2](https://v2.tauri.app/)
+- **Frontend:** [React](https://react.dev/) + TypeScript + [Vite](https://vitejs.dev/) + [Zustand](https://zustand-demo.pmnd.rs/) for state management.
+- **Icons:** [Lucide](https://lucide.dev/)
+- **Database:** SQLite (via `rusqlite`, bundled locally)
 
-## Stack
+---
 
-- **Desktop shell:** Tauri 2
-- **Frontend:** React + TypeScript + Vite
-- **State:** Zustand
-- **Icons:** Lucide
-- **Database:** SQLite (`rusqlite`, bundled)
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
-
 - Node.js 20+
 - npm 10+
 - Rust toolchain (`rustup`, `cargo`, `rustc`)
 
-If Rust was just installed, open a new shell (or run `source $HOME/.cargo/env`).
+*(If Rust was just installed, be sure to open a new shell or run `source $HOME/.cargo/env`)*
 
 ### Install
 
 ```bash
+# Clone the repository and install dependencies
+git clone https://github.com/tadpole256/slate.git
+cd slate
 npm install
 ```
 
-### Run (desktop app)
+### Run (Development)
+
+Launch the native desktop application with hot-reloading:
 
 ```bash
 npm run tauri -- dev
 ```
 
-### Build frontend bundle
+### Build (Production)
+
+Compile the application into a standalone macOS `.app` (or your respective OS executable):
 
 ```bash
-npm run build
+npm run tauri build
 ```
+*The output bundle will be placed in `src-tauri/target/release/bundle/`.*
 
-### Run backend tests
+---
 
-```bash
-source $HOME/.cargo/env
-cargo test --manifest-path src-tauri/Cargo.toml
-```
+## 🤝 Contributing & Feedback
 
-## Product Shape
+**Feedback and contributions are highly welcome!**
 
-Slate follows this layout:
+Whether you've found a bug, have an idea for a cool new feature, or want to directly contribute code, we'd love your help in making Slate the best local-first workspace out there.
 
-```text
-+--------------------------------------------------------------------------------------+
-| Slate                     [ Search current table... ]          [+ Record] [+ Table] |
-+----------------------+------------------------------------------------+--------------+
-| Tables               | Main Grid / Table View                         | Record       |
-| Contacts             |                                                | Detail Panel |
-| Notes                |                                                |              |
-| Projects             |                                                |              |
-| Ideas                |                                                |              |
-+----------------------+------------------------------------------------+--------------+
-```
+- 🐛 **Found a bug?** Open an [Issue](https://github.com/tadpole256/slate/issues).
+- 💡 **Have a feature request?** Start a discussion or open an issue.
+- 💻 **Want to contribute code?** 
+  1. Fork the repository.
+  2. Create a feature branch (`git checkout -b feature/my-new-feature`).
+  3. Commit your changes.
+  4. Ensure backend tests pass (`cargo test --manifest-path src-tauri/Cargo.toml`).
+  5. Open a Pull Request!
 
-## Architecture Overview
+If you are just exploring the code, standard React architecture applies in `src/`, and all Tauri/SQLite interactions live safely in `src-tauri/`.
 
-```mermaid
-flowchart LR
-  UI[React UI] --> Store[Zustand Store]
-  Store --> Cmd[Tauri Commands]
-  Cmd --> Svc[Backend Services]
-  Svc --> DB[(SQLite slate.db)]
+## 📜 License
 
-  Svc --> Meta[Metadata Tables]
-  Svc --> Data[Physical Data Tables]
-  Svc --> Links[Generalized Record Links]
-```
+Slate is free and open-source software, released under the **[GNU General Public License v3.0](./LICENSE)**. 
 
-## Data Model
-
-Slate uses an application metadata layer so the UI is not coupled to raw SQL introspection.
-
-### Metadata tables
-- `app_meta`: workspace/app-level metadata
-- `app_tables`: logical tables (display name, storage name, primary field)
-- `app_fields`: field definitions (type, order, visibility)
-- `app_views`: reserved for future view metadata
-
-### Relationship model (future-proof)
-- `record_links`: generalized many-to-many links between any records in any tables
-  - `from_table_id`, `from_record_id`
-  - `to_table_id`, `to_record_id`
-  - `link_type`, `metadata_json`
-
-### Physical storage strategy
-Each logical table maps to a physical SQLite table (`data_<id>`) containing:
-- `record_id` (stable key)
-- `created_at`
-- `updated_at`
-- one column per app field (`column_key`)
-
-This keeps query/write performance straightforward while preserving flexible metadata-driven UI behavior.
-
-## Repository Structure
-
-```text
-slate/
-  docs/
-    SLATE_MVP_PLAN.md
-    DEVELOPMENT_LOG.md
-  src/                # React frontend
-  src-tauri/          # Rust backend + SQLite + Tauri config
-```
-
-## Backend Service Layers
-
-- `db::init` - database initialization + starter seed
-- `schema_service` - physical schema operations
-- `metadata_service` - table/field metadata reads
-- `table_service` - table + field mutations
-- `record_service` - row CRUD
-- `search_service` - current-table search clauses
-- `link_service` - generalized record-link operations (placeholder surface for future UI)
-
-## Design Direction
-
-Slate UI targets:
-- serious, minimal dark interface
-- restrained blue/purple accenting
-- fast text-heavy editing comfort
-- clear hierarchy without dashboard clutter
-
-Primary palette:
-- `#0B0F19` background
-- `#121826` panel
-- `#1A2236` elevated
-- `#3B82F6` primary accent
-- `#8B5CF6` secondary accent
-
-## What Is Deliberately Out of Scope
-
-- authentication / user accounts
-- permissions / roles
-- collaboration
-- cloud sync
-- formula engine
-- automation engine
-
-Slate is intentionally a local personal workspace.
-
-## Near-Term Roadmap
-
-1. Persisted view configs (`app_views`) + basic saved filters/sorts
-2. Dedicated column-management UX (fewer prompt dialogs)
-3. Relationship UI powered by existing `record_links`
-4. Better keyboard navigation and bulk-edit ergonomics
-5. Import/export workflows (CSV and backup/restore)
-
-## Planning + Development Notes
-
-- Technical architecture and implementation phases: `docs/SLATE_MVP_PLAN.md`
-- Session-by-session implementation log: `docs/DEVELOPMENT_LOG.md`
-
-## License
-
-This repository uses the [GNU General Public License v3.0](./LICENSE).
+---
+*Built with ❤️ for a calmer, more organized digital life.*
