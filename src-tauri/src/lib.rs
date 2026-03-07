@@ -45,10 +45,7 @@ pub fn run() {
                 
                 let about_meta = AboutMetadata {
                     version: Some(app.package_info().version.to_string()),
-                    authors: Some(vec!["Anthony McCloskey".to_string()]),
-                    website: Some("https://anthonymccloskey.com".to_string()),
-                    license: Some("GNU General Public License v3.0".to_string()),
-                    comments: Some("Created by Anthony McCloskey.\nFree & Open Source Desktop Workspace.".to_string()),
+                    copyright: Some("Created by Anthony McCloskey\nhttps://anthonymccloskey.com\nGNU General Public License v3.0\nFree & Open Source Desktop Workspace.".to_string()),
                     ..Default::default()
                 };
                     
