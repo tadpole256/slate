@@ -273,10 +273,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   setSearchQuery: (query) => {
     set({ searchQuery: query });
+    if (get().activeTableId) {
+      void get().refreshActiveTable();
+    }
   },
 
   selectRecord: (recordId) => {
     set({ selectedRecordId: recordId });
+    if (recordId) {
+      const { activeTableId } = get();
+      if (activeTableId) {
+        void get().loadRecordAttachments(activeTableId, recordId);
+        void get().loadRecordLinks(activeTableId, recordId);
+      }
+    }
   },
 
   setCreateTableModalOpen: (open) => {

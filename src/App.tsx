@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { AddColumnModal } from "./components/common/AddColumnModal";
 import { CreateTableModal } from "./components/common/CreateTableModal";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -7,6 +7,8 @@ import { TopBar } from "./components/layout/TopBar";
 import { RecordDetailPanel } from "./components/record/RecordDetailPanel";
 import { MainTableView } from "./components/table/MainTableView";
 import { useWorkspaceStore } from "./store/workspaceStore";
+
+let hasInitialized = false;
 
 export default function App() {
   const {
@@ -30,7 +32,6 @@ export default function App() {
     initialize,
     forceStartupFailure,
     setActiveTable,
-    refreshActiveTable,
     setSearchQuery,
     selectRecord,
     setCreateTableModalOpen,
@@ -45,11 +46,9 @@ export default function App() {
     updateRecordCell,
     updateRecordValues,
     deleteRecord,
-    loadRecordLinks,
     createRecordLink,
     deleteRecordLink,
     loadRecordOptions,
-    loadRecordAttachments,
     attachFileToRecord,
     deleteAttachment,
     openAttachment
@@ -78,10 +77,9 @@ export default function App() {
     window.open(normalized, "_blank", "noopener,noreferrer");
   };
 
-  const initRef = useRef(false);
   useEffect(() => {
-    if (!initRef.current) {
-      initRef.current = true;
+    if (!hasInitialized) {
+      hasInitialized = true;
       void initialize();
     }
   }, [initialize]);
@@ -99,34 +97,6 @@ export default function App() {
 
     return () => clearTimeout(watchdog);
   }, [loading, forceStartupFailure]);
-
-  useEffect(() => {
-    if (!activeTableId) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      void refreshActiveTable();
-    }, 160);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, activeTableId, refreshActiveTable]);
-
-  useEffect(() => {
-    if (!activeTableId || !selectedRecordId) {
-      return;
-    }
-
-    void loadRecordAttachments(activeTableId, selectedRecordId);
-  }, [activeTableId, selectedRecordId, loadRecordAttachments]);
-
-  useEffect(() => {
-    if (!activeTableId || !selectedRecordId) {
-      return;
-    }
-
-    void loadRecordLinks(activeTableId, selectedRecordId);
-  }, [activeTableId, selectedRecordId, loadRecordLinks]);
 
   return (
     <>
@@ -216,9 +186,7 @@ export default function App() {
                 void attachFileToRecord(activeTableId, selectedRecordId);
               }
             }}
-            onOpenAttachment={(attachmentId) => {
-              void openAttachment(attachmentId);
-            }}
+            onOpenAttachment={openAttachment}
             onDeleteAttachment={(attachmentId) => {
               if (activeTableId && selectedRecordId) {
                 void deleteAttachment(activeTableId, selectedRecordId, attachmentId);
@@ -230,9 +198,7 @@ export default function App() {
             linksLoading={linksLoading}
             recordOptionsByTable={recordOptionsByTable}
             recordOptionsLoading={recordOptionsLoading}
-            onLoadRecordOptions={(tableId, query) => {
-              void loadRecordOptions(tableId, query);
-            }}
+            onLoadRecordOptions={loadRecordOptions}
             onCreateRecordLink={(toTableId, toRecordId) => {
               if (activeTableId && selectedRecordId) {
                 void createRecordLink(activeTableId, selectedRecordId, toTableId, toRecordId);
