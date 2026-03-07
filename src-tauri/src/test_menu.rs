@@ -7,11 +7,14 @@ pub fn set_macos_menu(app: &tauri::App) -> tauri::Result<()> {
         let handle = app.handle();
         let app_name = &app.package_info().name;
         
-        let about_meta = AboutMetadata::new()
-            .authors(vec!["Anthony McCloskey".to_string()])
-            .website("https://anthonymccloskey.com")
-            .license("GNU General Public License v3.0")
-            .comments("Free & Open Source Desktop Workspace.");
+        let about_meta = AboutMetadata {
+            version: Some("0.1.0".to_string()),
+            authors: Some(vec!["Anthony McCloskey".to_string()]),
+            website: Some("https://anthonymccloskey.com".to_string()),
+            license: Some("GNU General Public License v3.0".to_string()),
+            comments: Some("Free & Open Source Desktop Workspace.".to_string()),
+            ..Default::default()
+        };
             
         let about_item = PredefinedMenuItem::about(handle, Some("About Slate"), Some(about_meta))?;
         
