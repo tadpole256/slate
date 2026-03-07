@@ -6,6 +6,7 @@ use tauri::State;
 use crate::models::{
     AppField,
     AppTable,
+    AppView,
     FieldOption,
     FilterInput,
     InitResponse,
@@ -16,7 +17,7 @@ use crate::models::{
     SortInput,
     TableSnapshot,
 };
-use crate::services::{attachment_service, field_option_service, link_service, metadata_service, record_service, table_service};
+use crate::services::{attachment_service, field_option_service, link_service, metadata_service, record_service, table_service, view_service};
 use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
@@ -102,12 +103,62 @@ pub async fn get_table_snapshot(
             filters.as_deref(),
         )?;
         let field_options = field_option_service::list_all_options_for_table(conn, &table_id)?;
+        let views = view_service::ensure_default_view(conn, &table_id)?;
         Ok(TableSnapshot {
             table,
             fields,
             records,
             field_options,
+            views,
         })
+    }).await
+}
+
+#[tauri::command]
+pub async fn list_views(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+) -> CommandResult<Vec<AppView>> {
+    with_conn(state, move |conn| view_service::list_views(conn, &table_id)).await
+}
+
+#[tauri::command]
+pub async fn create_view(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    name: String,
+    view_type: String,
+) -> CommandResult<AppView> {
+    with_conn(state, move |conn| {
+        view_service::create_view(conn, &table_id, &name, &view_type)
+    }).await
+}
+
+#[tauri::command]
+pub async fn rename_view(
+    state: State<'_, std::sync::Arc<AppState>>,
+    view_id: String,
+    name: String,
+) -> CommandResult<AppView> {
+    with_conn(state, move |conn| view_service::rename_view(conn, &view_id, &name)).await
+}
+
+#[tauri::command]
+pub async fn delete_view(
+    state: State<'_, std::sync::Arc<AppState>>,
+    view_id: String,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| view_service::delete_view(conn, &view_id)).await
+}
+
+#[tauri::command]
+pub async fn update_view_config(
+    state: State<'_, std::sync::Arc<AppState>>,
+    view_id: String,
+    config_json: String,
+) -> CommandResult<AppView> {
+    with_conn(state, move |conn| {
+        view_service::update_view_config(conn, &view_id, &config_json)
     }).await
 }
 

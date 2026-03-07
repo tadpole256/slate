@@ -4,6 +4,7 @@ import type { AppField, AppTable } from "../../types/slate";
 interface TableToolbarProps {
   table: AppTable | null;
   fields: AppField[];
+  hiddenFieldIds: string[];
   recordCount: number;
   filterCount: number;
   showFilterBar: boolean;
@@ -17,6 +18,7 @@ interface TableToolbarProps {
 export function TableToolbar({
   table,
   fields,
+  hiddenFieldIds,
   recordCount,
   filterCount,
   showFilterBar,
@@ -52,7 +54,7 @@ export function TableToolbar({
             title="Show/hide columns"
           >
             <EyeOff size={14} />
-            Fields
+            Fields{hiddenFieldIds.length > 0 ? ` (${hiddenFieldIds.length} hidden)` : ""}
           </button>
 
           <button className="action-button secondary" onClick={onAddColumn} disabled={!table}>
@@ -69,7 +71,7 @@ export function TableToolbar({
             <label key={field.id} className="hide-field-row">
               <input
                 type="checkbox"
-                checked={field.is_visible !== 0}
+                checked={!hiddenFieldIds.includes(field.id)}
                 onChange={() => onToggleFieldVisibility(field.id)}
               />
               {field.display_name}

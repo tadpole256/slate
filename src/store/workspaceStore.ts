@@ -6,12 +6,14 @@ import {
   createRecord,
   createRecordLink as createRecordLinkApi,
   createTable,
+  createView as createViewApi,
   deleteAttachment as deleteAttachmentApi,
   deleteField,
   deleteFieldOption as deleteFieldOptionApi,
   deleteRecord,
   deleteRecordLink as deleteRecordLinkApi,
   deleteTable,
+  deleteView as deleteViewApi,
   getTableSnapshot,
   initApp,
   listRecordAttachments as listRecordAttachmentsApi,
@@ -20,15 +22,18 @@ import {
   openAttachment as openAttachmentApi,
   renameField,
   renameTable,
+  renameView as renameViewApi,
   reorderFields as reorderFieldsApi,
-  toggleFieldVisibility as toggleFieldVisibilityApi,
   updateFieldOption as updateFieldOptionApi,
-  updateRecord
+  updateRecord,
+  updateViewConfig as updateViewConfigApi,
+  // toggleFieldVisibility is now handled via view config (no backend call needed)
 } from "../lib/tauri";
 import { normalizeName } from "../lib/format";
 import type {
   AppField,
   AppTable,
+  AppView,
   FieldOption,
   FieldType,
   FilterInput,
@@ -36,7 +41,9 @@ import type {
   RecordLink,
   RecordOption,
   RecordRow,
-  SortInput
+  RowHeight,
+  SortInput,
+  ViewConfig,
 } from "../types/slate";
 
 interface WorkspaceState {
@@ -59,6 +66,11 @@ interface WorkspaceState {
   searchQuery: string;
   sortsByTable: Record<string, SortInput[]>;
   filtersByTable: Record<string, FilterInput[]>;
+  viewsByTable: Record<string, AppView[]>;
+  activeViewIdByTable: Record<string, string | null>;
+  hiddenFieldIdsByTable: Record<string, string[]>;
+  rowHeightByTable: Record<string, RowHeight>;
+  kanbanGroupByFieldIdByTable: Record<string, string | null>;
   createTableModalOpen: boolean;
   addColumnModalOpen: boolean;
   initialize: () => Promise<void>;
@@ -70,6 +82,13 @@ interface WorkspaceState {
   setFilters: (tableId: string, filters: FilterInput[]) => void;
   toggleFieldVisibility: (fieldId: string) => Promise<void>;
   reorderFields: (tableId: string, fieldIds: string[]) => Promise<void>;
+  setActiveView: (tableId: string, viewId: string) => void;
+  setRowHeight: (tableId: string, height: RowHeight) => Promise<void>;
+  setKanbanGroupByField: (tableId: string, fieldId: string) => Promise<void>;
+  createView: (tableId: string, name: string, viewType: string) => Promise<void>;
+  renameView: (viewId: string, tableId: string, name: string) => Promise<void>;
+  deleteView: (tableId: string, viewId: string) => Promise<void>;
+  saveActiveViewConfig: (tableId: string) => Promise<void>;
   selectRecord: (recordId: string | null) => void;
   setCreateTableModalOpen: (open: boolean) => void;
   setAddColumnModalOpen: (open: boolean) => void;
@@ -183,6 +202,19 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, message: string):
   }
 }
 
+function parseViewConfig(configJson: string): ViewConfig {
+  try {
+    const parsed = JSON.parse(configJson) as Partial<ViewConfig>;
+    return {
+      hiddenFieldIds: parsed.hiddenFieldIds ?? [],
+      kanbanGroupByFieldId: parsed.kanbanGroupByFieldId,
+      rowHeight: parsed.rowHeight,
+    };
+  } catch {
+    return { hiddenFieldIds: [] };
+  }
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   debugLogs: [],
   addDebugLog: (msg) => set((s) => ({ debugLogs: [...s.debugLogs, `${new Date().toISOString().substring(11, 23)} - ${msg}`] })),
@@ -203,6 +235,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   searchQuery: "",
   sortsByTable: {},
   filtersByTable: {},
+  viewsByTable: {},
+  activeViewIdByTable: {},
+  hiddenFieldIdsByTable: {},
+  rowHeightByTable: {},
+  kanbanGroupByFieldIdByTable: {},
   createTableModalOpen: false,
   addColumnModalOpen: false,
 
@@ -284,24 +321,45 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         newFieldOptions[opt.field_id].push(opt);
       }
 
-      set((state) => ({
-        tables: state.tables.map((table) =>
-          table.id === snapshot.table.id ? snapshot.table : table
-        ),
-        fieldsByTable: {
-          ...state.fieldsByTable,
-          [activeTableId]: snapshot.fields
-        },
-        recordsByTable: {
-          ...state.recordsByTable,
-          [activeTableId]: snapshot.records
-        },
-        fieldOptionsByField: {
-          ...state.fieldOptionsByField,
-          ...newFieldOptions
-        },
-        error: null
-      }));
+      set((state) => {
+        const alreadyHasView = !!state.activeViewIdByTable[activeTableId];
+        const firstView = snapshot.views[0];
+
+        let viewInit: Partial<WorkspaceState> = {};
+        if (!alreadyHasView && firstView) {
+          const config = parseViewConfig(firstView.config_json);
+          viewInit = {
+            activeViewIdByTable: { ...state.activeViewIdByTable, [activeTableId]: firstView.id },
+            hiddenFieldIdsByTable: { ...state.hiddenFieldIdsByTable, [activeTableId]: config.hiddenFieldIds },
+            rowHeightByTable: { ...state.rowHeightByTable, [activeTableId]: config.rowHeight ?? "default" },
+            kanbanGroupByFieldIdByTable: { ...state.kanbanGroupByFieldIdByTable, [activeTableId]: config.kanbanGroupByFieldId ?? null },
+          };
+        }
+
+        return {
+          tables: state.tables.map((table) =>
+            table.id === snapshot.table.id ? snapshot.table : table
+          ),
+          fieldsByTable: {
+            ...state.fieldsByTable,
+            [activeTableId]: snapshot.fields
+          },
+          recordsByTable: {
+            ...state.recordsByTable,
+            [activeTableId]: snapshot.records
+          },
+          fieldOptionsByField: {
+            ...state.fieldOptionsByField,
+            ...newFieldOptions
+          },
+          viewsByTable: {
+            ...state.viewsByTable,
+            [activeTableId]: snapshot.views,
+          },
+          error: null,
+          ...viewInit,
+        };
+      });
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to load table") });
     }
@@ -329,21 +387,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   toggleFieldVisibility: async (fieldId) => {
-    try {
-      const updated = await toggleFieldVisibilityApi(fieldId);
-      set((state) => {
-        const tableFields = state.fieldsByTable[updated.table_id] ?? [];
-        return {
-          fieldsByTable: {
-            ...state.fieldsByTable,
-            [updated.table_id]: tableFields.map((f) => (f.id === updated.id ? updated : f))
-          },
-          error: null
-        };
-      });
-    } catch (error) {
-      set({ error: toErrorMessage(error, "Failed to toggle field visibility") });
-    }
+    const { activeTableId, hiddenFieldIdsByTable } = get();
+    if (!activeTableId) return;
+    const hidden = hiddenFieldIdsByTable[activeTableId] ?? [];
+    const newHidden = hidden.includes(fieldId)
+      ? hidden.filter((id) => id !== fieldId)
+      : [...hidden, fieldId];
+    set((state) => ({
+      hiddenFieldIdsByTable: { ...state.hiddenFieldIdsByTable, [activeTableId]: newHidden },
+    }));
+    await get().saveActiveViewConfig(activeTableId);
   },
 
   reorderFields: async (tableId, fieldIds) => {
@@ -352,6 +405,90 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       await get().refreshActiveTable();
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to reorder fields") });
+    }
+  },
+
+  setActiveView: (tableId, viewId) => {
+    const { viewsByTable } = get();
+    const view = (viewsByTable[tableId] ?? []).find((v) => v.id === viewId);
+    if (!view) return;
+    const config = parseViewConfig(view.config_json);
+    set((state) => ({
+      activeViewIdByTable: { ...state.activeViewIdByTable, [tableId]: viewId },
+      hiddenFieldIdsByTable: { ...state.hiddenFieldIdsByTable, [tableId]: config.hiddenFieldIds },
+      rowHeightByTable: { ...state.rowHeightByTable, [tableId]: config.rowHeight ?? "default" },
+      kanbanGroupByFieldIdByTable: { ...state.kanbanGroupByFieldIdByTable, [tableId]: config.kanbanGroupByFieldId ?? null },
+    }));
+  },
+
+  createView: async (tableId, name, viewType) => {
+    try {
+      const view = await createViewApi(tableId, name, viewType);
+      set((state) => ({
+        viewsByTable: {
+          ...state.viewsByTable,
+          [tableId]: [...(state.viewsByTable[tableId] ?? []), view],
+        },
+      }));
+      get().setActiveView(tableId, view.id);
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to create view") });
+    }
+  },
+
+  renameView: async (viewId, tableId, name) => {
+    try {
+      const updated = await renameViewApi(viewId, name);
+      set((state) => ({
+        viewsByTable: {
+          ...state.viewsByTable,
+          [tableId]: (state.viewsByTable[tableId] ?? []).map((v) =>
+            v.id === viewId ? updated : v
+          ),
+        },
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to rename view") });
+    }
+  },
+
+  deleteView: async (tableId, viewId) => {
+    const { viewsByTable, activeViewIdByTable } = get();
+    const views = viewsByTable[tableId] ?? [];
+    if (views.length <= 1) return; // cannot delete last view
+    try {
+      await deleteViewApi(viewId);
+      const nextViews = views.filter((v) => v.id !== viewId);
+      set((state) => ({
+        viewsByTable: { ...state.viewsByTable, [tableId]: nextViews },
+      }));
+      if (activeViewIdByTable[tableId] === viewId) {
+        get().setActiveView(tableId, nextViews[0].id);
+      }
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to delete view") });
+    }
+  },
+
+  saveActiveViewConfig: async (tableId) => {
+    const { activeViewIdByTable, hiddenFieldIdsByTable } = get();
+    const viewId = activeViewIdByTable[tableId];
+    if (!viewId) return;
+    const config: ViewConfig = {
+      hiddenFieldIds: hiddenFieldIdsByTable[tableId] ?? [],
+    };
+    try {
+      const updated = await updateViewConfigApi(viewId, JSON.stringify(config));
+      set((state) => ({
+        viewsByTable: {
+          ...state.viewsByTable,
+          [tableId]: (state.viewsByTable[tableId] ?? []).map((v) =>
+            v.id === viewId ? updated : v
+          ),
+        },
+      }));
+    } catch {
+      // non-critical
     }
   },
 

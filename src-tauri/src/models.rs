@@ -67,11 +67,23 @@ pub struct FieldOption {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppView {
+    pub id: String,
+    pub table_id: String,
+    pub name: String,
+    pub view_type: String,
+    pub config_json: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableSnapshot {
     pub table: AppTable,
     pub fields: Vec<AppField>,
     pub records: Vec<RecordRow>,
     pub field_options: Vec<FieldOption>,
+    pub views: Vec<AppView>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

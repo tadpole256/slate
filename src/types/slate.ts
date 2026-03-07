@@ -53,11 +53,31 @@ export interface RecordRow {
   values: Record<string, string | number | null>;
 }
 
+export type ViewType = "grid" | "gallery" | "kanban";
+export type RowHeight = "compact" | "default" | "tall";
+
+export interface AppView {
+  id: string;
+  table_id: string;
+  name: string;
+  view_type: ViewType;
+  config_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ViewConfig {
+  hiddenFieldIds: string[];
+  kanbanGroupByFieldId?: string;
+  rowHeight?: RowHeight;
+}
+
 export interface TableSnapshot {
   table: AppTable;
   fields: AppField[];
   records: RecordRow[];
   field_options: FieldOption[];
+  views: AppView[];
 }
 
 export interface InitResponse {

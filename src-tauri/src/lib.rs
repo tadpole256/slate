@@ -133,6 +133,11 @@ pub fn run() {
             commands::reorder_field_options,
             commands::reorder_fields,
             commands::toggle_field_visibility,
+            commands::list_views,
+            commands::create_view,
+            commands::rename_view,
+            commands::delete_view,
+            commands::update_view_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate application");

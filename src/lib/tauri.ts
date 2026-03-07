@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppField,
   AppTable,
+  AppView,
   FieldMutationInput,
   FieldOption,
   FilterInput,
@@ -190,4 +191,24 @@ export async function reorderFields(tableId: string, fieldIds: string[]): Promis
 
 export async function toggleFieldVisibility(fieldId: string): Promise<AppField> {
   return invoke<AppField>("toggle_field_visibility", { fieldId });
+}
+
+export async function listViews(tableId: string): Promise<AppView[]> {
+  return invoke<AppView[]>("list_views", { tableId });
+}
+
+export async function createView(tableId: string, name: string, viewType: string): Promise<AppView> {
+  return invoke<AppView>("create_view", { tableId, name, viewType });
+}
+
+export async function renameView(viewId: string, name: string): Promise<AppView> {
+  return invoke<AppView>("rename_view", { viewId, name });
+}
+
+export async function deleteView(viewId: string): Promise<void> {
+  return invoke<void>("delete_view", { viewId });
+}
+
+export async function updateViewConfig(viewId: string, configJson: string): Promise<AppView> {
+  return invoke<AppView>("update_view_config", { viewId, configJson });
 }

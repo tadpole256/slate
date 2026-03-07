@@ -12,6 +12,7 @@ interface MainTableViewProps {
   fieldOptionsByField: Record<string, FieldOption[]>;
   sorts: SortInput[];
   filters: FilterInput[];
+  hiddenFieldIds: string[];
   selectedRecordId: string | null;
   onSelectRecord: (recordId: string) => void;
   onCellChange: (recordId: string, columnKey: string, value: string | number | null) => void;
@@ -32,6 +33,7 @@ export function MainTableView({
   fieldOptionsByField,
   sorts,
   filters,
+  hiddenFieldIds,
   selectedRecordId,
   onSelectRecord,
   onCellChange,
@@ -47,7 +49,10 @@ export function MainTableView({
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [showHidePanel, setShowHidePanel] = useState(false);
 
-  const visibleFields = useMemo(() => fields.filter((f) => f.is_visible !== 0), [fields]);
+  const visibleFields = useMemo(
+    () => fields.filter((f) => !hiddenFieldIds.includes(f.id)),
+    [fields, hiddenFieldIds]
+  );
 
   const sortByField = useMemo(
     () =>
@@ -82,6 +87,7 @@ export function MainTableView({
       <TableToolbar
         table={table}
         fields={fields}
+        hiddenFieldIds={hiddenFieldIds}
         recordCount={records.length}
         filterCount={filters.length}
         showFilterBar={showFilterBar}
