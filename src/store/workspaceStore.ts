@@ -2,11 +2,13 @@ import { create } from "zustand";
 import {
   attachFileToRecord as attachFileToRecordApi,
   createField,
+  createFieldOption as createFieldOptionApi,
   createRecord,
   createRecordLink as createRecordLinkApi,
   createTable,
   deleteAttachment as deleteAttachmentApi,
   deleteField,
+  deleteFieldOption as deleteFieldOptionApi,
   deleteRecord,
   deleteRecordLink as deleteRecordLinkApi,
   deleteTable,
@@ -18,17 +20,23 @@ import {
   openAttachment as openAttachmentApi,
   renameField,
   renameTable,
+  reorderFields as reorderFieldsApi,
+  toggleFieldVisibility as toggleFieldVisibilityApi,
+  updateFieldOption as updateFieldOptionApi,
   updateRecord
 } from "../lib/tauri";
 import { normalizeName } from "../lib/format";
 import type {
   AppField,
   AppTable,
+  FieldOption,
   FieldType,
+  FilterInput,
   RecordAttachment,
   RecordLink,
   RecordOption,
-  RecordRow
+  RecordRow,
+  SortInput
 } from "../types/slate";
 
 interface WorkspaceState {
@@ -39,6 +47,7 @@ interface WorkspaceState {
   tables: AppTable[];
   fieldsByTable: Record<string, AppField[]>;
   recordsByTable: Record<string, RecordRow[]>;
+  fieldOptionsByField: Record<string, FieldOption[]>;
   linksByRecord: Record<string, RecordLink[]>;
   recordOptionsByTable: Record<string, RecordOption[]>;
   linksLoading: boolean;
@@ -48,6 +57,8 @@ interface WorkspaceState {
   activeTableId: string | null;
   selectedRecordId: string | null;
   searchQuery: string;
+  sortsByTable: Record<string, SortInput[]>;
+  filtersByTable: Record<string, FilterInput[]>;
   createTableModalOpen: boolean;
   addColumnModalOpen: boolean;
   initialize: () => Promise<void>;
@@ -55,6 +66,10 @@ interface WorkspaceState {
   setActiveTable: (tableId: string) => Promise<void>;
   refreshActiveTable: () => Promise<void>;
   setSearchQuery: (query: string) => void;
+  setSorts: (tableId: string, sorts: SortInput[]) => void;
+  setFilters: (tableId: string, filters: FilterInput[]) => void;
+  toggleFieldVisibility: (fieldId: string) => Promise<void>;
+  reorderFields: (tableId: string, fieldIds: string[]) => Promise<void>;
   selectRecord: (recordId: string | null) => void;
   setCreateTableModalOpen: (open: boolean) => void;
   setAddColumnModalOpen: (open: boolean) => void;
@@ -90,11 +105,14 @@ interface WorkspaceState {
   attachFileToRecord: (tableId: string, recordId: string) => Promise<void>;
   deleteAttachment: (tableId: string, recordId: string, attachmentId: string) => Promise<void>;
   openAttachment: (attachmentId: string) => Promise<void>;
+  createFieldOption: (fieldId: string, label: string, color?: string) => Promise<FieldOption | null>;
+  updateFieldOption: (fieldId: string, optionId: string, label: string, color: string) => Promise<void>;
+  deleteFieldOption: (fieldId: string, optionId: string) => Promise<void>;
 }
 
 function buildDefaultValues(fields: AppField[]): Record<string, string | number | null> {
   return fields.reduce<Record<string, string | number | null>>((acc, field) => {
-    if (field.field_type === "checkbox") {
+    if (["checkbox", "rating", "duration", "number", "currency", "percent"].includes(field.field_type)) {
       acc[field.column_key] = 0;
     } else {
       acc[field.column_key] = "";
@@ -173,6 +191,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   tables: [],
   fieldsByTable: {},
   recordsByTable: {},
+  fieldOptionsByField: {},
   linksByRecord: {},
   recordOptionsByTable: {},
   linksLoading: false,
@@ -182,6 +201,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   activeTableId: null,
   selectedRecordId: null,
   searchQuery: "",
+  sortsByTable: {},
+  filtersByTable: {},
   createTableModalOpen: false,
   addColumnModalOpen: false,
 
@@ -244,13 +265,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   refreshActiveTable: async () => {
-    const { activeTableId, searchQuery } = get();
+    const { activeTableId, searchQuery, sortsByTable, filtersByTable } = get();
     if (!activeTableId) {
       return;
     }
 
     try {
-      const snapshot = await getTableSnapshot(activeTableId, searchQuery);
+      const sorts = sortsByTable[activeTableId];
+      const filters = filtersByTable[activeTableId];
+      const snapshot = await getTableSnapshot(activeTableId, searchQuery, sorts, filters);
+
+      // Group field options by field_id for fast lookup
+      const newFieldOptions: Record<string, FieldOption[]> = {};
+      for (const opt of snapshot.field_options) {
+        if (!newFieldOptions[opt.field_id]) {
+          newFieldOptions[opt.field_id] = [];
+        }
+        newFieldOptions[opt.field_id].push(opt);
+      }
 
       set((state) => ({
         tables: state.tables.map((table) =>
@@ -264,6 +296,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           ...state.recordsByTable,
           [activeTableId]: snapshot.records
         },
+        fieldOptionsByField: {
+          ...state.fieldOptionsByField,
+          ...newFieldOptions
+        },
         error: null
       }));
     } catch (error) {
@@ -275,6 +311,47 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ searchQuery: query });
     if (get().activeTableId) {
       void get().refreshActiveTable();
+    }
+  },
+
+  setSorts: (tableId, sorts) => {
+    set((state) => ({
+      sortsByTable: { ...state.sortsByTable, [tableId]: sorts }
+    }));
+    void get().refreshActiveTable();
+  },
+
+  setFilters: (tableId, filters) => {
+    set((state) => ({
+      filtersByTable: { ...state.filtersByTable, [tableId]: filters }
+    }));
+    void get().refreshActiveTable();
+  },
+
+  toggleFieldVisibility: async (fieldId) => {
+    try {
+      const updated = await toggleFieldVisibilityApi(fieldId);
+      set((state) => {
+        const tableFields = state.fieldsByTable[updated.table_id] ?? [];
+        return {
+          fieldsByTable: {
+            ...state.fieldsByTable,
+            [updated.table_id]: tableFields.map((f) => (f.id === updated.id ? updated : f))
+          },
+          error: null
+        };
+      });
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to toggle field visibility") });
+    }
+  },
+
+  reorderFields: async (tableId, fieldIds) => {
+    try {
+      await reorderFieldsApi(tableId, fieldIds);
+      await get().refreshActiveTable();
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to reorder fields") });
     }
   },
 
@@ -636,6 +713,57 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       await openAttachmentApi(attachmentId);
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to open attachment") });
+    }
+  },
+
+  createFieldOption: async (fieldId, label, color = "default") => {
+    try {
+      const option = await createFieldOptionApi(fieldId, label, color);
+      set((state) => ({
+        fieldOptionsByField: {
+          ...state.fieldOptionsByField,
+          [fieldId]: [...(state.fieldOptionsByField[fieldId] ?? []), option]
+        },
+        error: null
+      }));
+      return option;
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to create field option") });
+      return null;
+    }
+  },
+
+  updateFieldOption: async (fieldId, optionId, label, color) => {
+    try {
+      const updated = await updateFieldOptionApi(optionId, label, color);
+      set((state) => ({
+        fieldOptionsByField: {
+          ...state.fieldOptionsByField,
+          [fieldId]: (state.fieldOptionsByField[fieldId] ?? []).map((opt) =>
+            opt.id === optionId ? updated : opt
+          )
+        },
+        error: null
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to update field option") });
+    }
+  },
+
+  deleteFieldOption: async (fieldId, optionId) => {
+    try {
+      await deleteFieldOptionApi(optionId);
+      set((state) => ({
+        fieldOptionsByField: {
+          ...state.fieldOptionsByField,
+          [fieldId]: (state.fieldOptionsByField[fieldId] ?? []).filter(
+            (opt) => opt.id !== optionId
+          )
+        },
+        error: null
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to delete field option") });
     }
   }
 }));

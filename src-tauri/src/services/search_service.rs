@@ -9,7 +9,11 @@ pub fn build_search_clause(fields: &[AppField], query: &str) -> Option<(String, 
 
     let searchable = fields
         .iter()
-        .filter(|field| matches!(field.field_type.as_str(), "text" | "long_text" | "date"))
+        .filter(|field| matches!(
+            field.field_type.as_str(),
+            "text" | "long_text" | "date" | "email" | "phone" | "url" | "link"
+                | "single_select" | "multi_select"
+        ))
         .map(|field| format!("CAST({} AS TEXT) LIKE ?", quote_ident(&field.column_key)))
         .collect::<Vec<_>>();
 

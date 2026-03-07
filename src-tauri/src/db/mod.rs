@@ -24,12 +24,20 @@ pub fn quote_ident(identifier: &str) -> String {
 }
 
 pub fn is_supported_field_type(field_type: &str) -> bool {
-    matches!(field_type, "text" | "long_text" | "date" | "checkbox" | "link")
+    matches!(
+        field_type,
+        "text" | "long_text" | "date" | "checkbox" | "link"
+            | "number" | "currency" | "percent"
+            | "email" | "url" | "phone"
+            | "single_select" | "multi_select"
+            | "rating" | "duration"
+    )
 }
 
 pub fn to_sql_column_type(field_type: &str) -> &'static str {
     match field_type {
-        "checkbox" => "INTEGER",
+        "checkbox" | "rating" | "duration" => "INTEGER",
+        "number" | "currency" | "percent" => "REAL",
         _ => "TEXT",
     }
 }

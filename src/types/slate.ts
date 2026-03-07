@@ -1,4 +1,19 @@
-export type FieldType = "text" | "long_text" | "date" | "checkbox" | "link";
+export type FieldType =
+  | "text"
+  | "long_text"
+  | "date"
+  | "checkbox"
+  | "link"
+  | "number"
+  | "currency"
+  | "percent"
+  | "email"
+  | "url"
+  | "phone"
+  | "single_select"
+  | "multi_select"
+  | "rating"
+  | "duration";
 
 export interface AppTable {
   id: string;
@@ -22,6 +37,15 @@ export interface AppField {
   updated_at: string;
 }
 
+export interface FieldOption {
+  id: string;
+  field_id: string;
+  label: string;
+  color: string;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface RecordRow {
   record_id: string;
   created_at: string;
@@ -33,10 +57,36 @@ export interface TableSnapshot {
   table: AppTable;
   fields: AppField[];
   records: RecordRow[];
+  field_options: FieldOption[];
 }
 
 export interface InitResponse {
   tables: AppTable[];
+}
+
+export type SortDirection = "asc" | "desc";
+
+export interface SortInput {
+  field_id: string;
+  direction: SortDirection;
+}
+
+export type FilterOp =
+  | "eq"
+  | "neq"
+  | "contains"
+  | "not_contains"
+  | "is_empty"
+  | "is_not_empty"
+  | "gt"
+  | "lt"
+  | "gte"
+  | "lte";
+
+export interface FilterInput {
+  field_id: string;
+  op: FilterOp;
+  value?: string;
 }
 
 export interface FieldMutationInput {

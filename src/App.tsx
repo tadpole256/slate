@@ -51,12 +51,21 @@ export default function App() {
     loadRecordOptions,
     attachFileToRecord,
     deleteAttachment,
-    openAttachment
+    openAttachment,
+    fieldOptionsByField,
+    sortsByTable,
+    filtersByTable,
+    createFieldOption,
+    setSorts,
+    setFilters,
+    toggleFieldVisibility,
   } = useWorkspaceStore();
 
   const activeTable = tables.find((table) => table.id === activeTableId) ?? null;
   const activeFields = activeTableId ? fieldsByTable[activeTableId] ?? [] : [];
   const activeRecords = activeTableId ? recordsByTable[activeTableId] ?? [] : [];
+  const activeSorts = activeTableId ? sortsByTable[activeTableId] ?? [] : [];
+  const activeFilters = activeTableId ? filtersByTable[activeTableId] ?? [] : [];
   const selectedRecord =
     activeRecords.find((record) => record.record_id === selectedRecordId) ?? null;
   const selectedRecordAttachments =
@@ -140,6 +149,9 @@ export default function App() {
             table={activeTable}
             fields={activeFields}
             records={activeRecords}
+            fieldOptionsByField={fieldOptionsByField}
+            sorts={activeSorts}
+            filters={activeFilters}
             selectedRecordId={selectedRecordId}
             onSelectRecord={selectRecord}
             onCellChange={(recordId, columnKey, value) => {
@@ -165,6 +177,13 @@ export default function App() {
                 void deleteField(field.id);
               }
             }}
+            onSortsChange={(sorts) => {
+              if (activeTableId) setSorts(activeTableId, sorts);
+            }}
+            onFiltersChange={(filters) => {
+              if (activeTableId) setFilters(activeTableId, filters);
+            }}
+            onToggleFieldVisibility={(fieldId) => void toggleFieldVisibility(fieldId)}
           />
         }
         detail={
@@ -219,6 +238,10 @@ export default function App() {
               if (activeTableId && selectedRecordId && window.confirm("Delete this record?")) {
                 void deleteRecord(activeTableId, selectedRecordId);
               }
+            }}
+            fieldOptionsByField={fieldOptionsByField}
+            onCreateFieldOption={async (fieldId, label) => {
+              await createFieldOption(fieldId, label);
             }}
           />
         }

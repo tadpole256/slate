@@ -214,6 +214,26 @@ pub fn rename_field(conn: &Connection, field_id: &str, display_name: &str) -> Re
     metadata_service::get_field(conn, field_id)
 }
 
+pub fn reorder_fields(conn: &Connection, table_id: &str, field_ids: &[String]) -> Result<()> {
+    for (idx, field_id) in field_ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE app_fields SET field_order = ?1, updated_at = ?2 WHERE id = ?3 AND table_id = ?4",
+            (idx as i64, now_iso(), field_id, table_id),
+        )?;
+    }
+    Ok(())
+}
+
+pub fn toggle_field_visibility(conn: &Connection, field_id: &str) -> Result<AppField> {
+    let field = metadata_service::get_field(conn, field_id)?;
+    let next_visibility = if field.is_visible != 0 { 0i64 } else { 1i64 };
+    conn.execute(
+        "UPDATE app_fields SET is_visible = ?1, updated_at = ?2 WHERE id = ?3",
+        (next_visibility, now_iso(), field_id),
+    )?;
+    metadata_service::get_field(conn, field_id)
+}
+
 pub fn delete_field(conn: &Connection, field_id: &str) -> Result<()> {
     let field = metadata_service::get_field(conn, field_id)?;
     let table = metadata_service::get_table(conn, &field.table_id)?;

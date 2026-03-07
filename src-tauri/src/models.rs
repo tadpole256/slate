@@ -3,6 +3,27 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Sort specification sent from the frontend for `get_table_snapshot`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SortInput {
+    /// ID of the field to sort by.
+    pub field_id: String,
+    /// "asc" or "desc"
+    pub direction: String,
+}
+
+/// Filter specification sent from the frontend for `get_table_snapshot`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FilterInput {
+    /// ID of the field to filter on.
+    pub field_id: String,
+    /// Operator: "eq" | "neq" | "contains" | "not_contains" |
+    ///           "is_empty" | "is_not_empty" | "gt" | "lt" | "gte" | "lte"
+    pub op: String,
+    /// Value to compare against (None for is_empty / is_not_empty).
+    pub value: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppTable {
     pub id: String,
@@ -36,10 +57,21 @@ pub struct RecordRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldOption {
+    pub id: String,
+    pub field_id: String,
+    pub label: String,
+    pub color: String,
+    pub sort_order: i64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableSnapshot {
     pub table: AppTable,
     pub fields: Vec<AppField>,
     pub records: Vec<RecordRow>,
+    pub field_options: Vec<FieldOption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

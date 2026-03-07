@@ -6,14 +6,17 @@ use tauri::State;
 use crate::models::{
     AppField,
     AppTable,
+    FieldOption,
+    FilterInput,
     InitResponse,
     RecordAttachment,
     RecordLink,
     RecordOption,
     RecordRow,
+    SortInput,
     TableSnapshot,
 };
-use crate::services::{attachment_service, link_service, metadata_service, record_service, table_service};
+use crate::services::{attachment_service, field_option_service, link_service, metadata_service, record_service, table_service};
 use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
@@ -85,15 +88,25 @@ pub async fn get_table_snapshot(
     state: State<'_, std::sync::Arc<AppState>>,
     table_id: String,
     query: Option<String>,
+    sorts: Option<Vec<SortInput>>,
+    filters: Option<Vec<FilterInput>>,
 ) -> CommandResult<TableSnapshot> {
     with_conn(state, move |conn| {
         let table = metadata_service::get_table(conn, &table_id)?;
         let fields = metadata_service::list_fields(conn, &table_id)?;
-        let records = record_service::list_records(conn, &table_id, query.as_deref())?;
+        let records = record_service::list_records(
+            conn,
+            &table_id,
+            query.as_deref(),
+            sorts.as_deref(),
+            filters.as_deref(),
+        )?;
+        let field_options = field_option_service::list_all_options_for_table(conn, &table_id)?;
         Ok(TableSnapshot {
             table,
             fields,
             records,
+            field_options,
         })
     }).await
 }
@@ -262,4 +275,77 @@ pub async fn list_record_options(
     query: Option<String>,
 ) -> CommandResult<Vec<RecordOption>> {
     with_conn(state, move |conn| link_service::list_record_options(conn, &table_id, query.as_deref())).await
+}
+
+#[tauri::command]
+pub async fn list_field_options(
+    state: State<'_, std::sync::Arc<AppState>>,
+    field_id: String,
+) -> CommandResult<Vec<FieldOption>> {
+    with_conn(state, move |conn| field_option_service::list_field_options(conn, &field_id)).await
+}
+
+#[tauri::command]
+pub async fn create_field_option(
+    state: State<'_, std::sync::Arc<AppState>>,
+    field_id: String,
+    label: String,
+    color: String,
+) -> CommandResult<FieldOption> {
+    with_conn(state, move |conn| {
+        field_option_service::create_field_option(conn, &field_id, &label, &color)
+    }).await
+}
+
+#[tauri::command]
+pub async fn update_field_option(
+    state: State<'_, std::sync::Arc<AppState>>,
+    option_id: String,
+    label: String,
+    color: String,
+) -> CommandResult<FieldOption> {
+    with_conn(state, move |conn| {
+        field_option_service::update_field_option(conn, &option_id, &label, &color)
+    }).await
+}
+
+#[tauri::command]
+pub async fn delete_field_option(
+    state: State<'_, std::sync::Arc<AppState>>,
+    option_id: String,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        field_option_service::delete_field_option(conn, &option_id)
+    }).await
+}
+
+#[tauri::command]
+pub async fn reorder_field_options(
+    state: State<'_, std::sync::Arc<AppState>>,
+    option_ids: Vec<String>,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        field_option_service::reorder_field_options(conn, &option_ids)
+    }).await
+}
+
+#[tauri::command]
+pub async fn reorder_fields(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    field_ids: Vec<String>,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        table_service::reorder_fields(conn, &table_id, &field_ids)
+    }).await
+}
+
+#[tauri::command]
+pub async fn toggle_field_visibility(
+    state: State<'_, std::sync::Arc<AppState>>,
+    field_id: String,
+) -> CommandResult<AppField> {
+    with_conn(state, move |conn| {
+        table_service::toggle_field_visibility(conn, &field_id)
+    }).await
 }

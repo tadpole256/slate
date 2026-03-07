@@ -3,6 +3,8 @@ import type {
   AppField,
   AppTable,
   FieldMutationInput,
+  FieldOption,
+  FilterInput,
   InitResponse,
   RecordAttachment,
   RecordLink,
@@ -10,6 +12,7 @@ import type {
   RecordMutationInput,
   RecordRow,
   RecordUpdateInput,
+  SortInput,
   TableSnapshot
 } from "../types/slate";
 
@@ -21,10 +24,17 @@ export async function listTables(): Promise<AppTable[]> {
   return invoke<AppTable[]>("list_tables");
 }
 
-export async function getTableSnapshot(tableId: string, query?: string): Promise<TableSnapshot> {
+export async function getTableSnapshot(
+  tableId: string,
+  query?: string,
+  sorts?: SortInput[],
+  filters?: FilterInput[]
+): Promise<TableSnapshot> {
   return invoke<TableSnapshot>("get_table_snapshot", {
     tableId,
-    query: query?.trim() || null
+    query: query?.trim() || null,
+    sorts: sorts?.length ? sorts : null,
+    filters: filters?.length ? filters : null,
   });
 }
 
@@ -144,4 +154,40 @@ export async function listRecordOptions(tableId: string, query?: string): Promis
     tableId,
     query: query?.trim() || null
   });
+}
+
+export async function listFieldOptions(fieldId: string): Promise<FieldOption[]> {
+  return invoke<FieldOption[]>("list_field_options", { fieldId });
+}
+
+export async function createFieldOption(
+  fieldId: string,
+  label: string,
+  color = "default"
+): Promise<FieldOption> {
+  return invoke<FieldOption>("create_field_option", { fieldId, label, color });
+}
+
+export async function updateFieldOption(
+  optionId: string,
+  label: string,
+  color: string
+): Promise<FieldOption> {
+  return invoke<FieldOption>("update_field_option", { optionId, label, color });
+}
+
+export async function deleteFieldOption(optionId: string): Promise<void> {
+  return invoke<void>("delete_field_option", { optionId });
+}
+
+export async function reorderFieldOptions(optionIds: string[]): Promise<void> {
+  return invoke<void>("reorder_field_options", { optionIds });
+}
+
+export async function reorderFields(tableId: string, fieldIds: string[]): Promise<void> {
+  return invoke<void>("reorder_fields", { tableId, fieldIds });
+}
+
+export async function toggleFieldVisibility(fieldId: string): Promise<AppField> {
+  return invoke<AppField>("toggle_field_visibility", { fieldId });
 }

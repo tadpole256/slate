@@ -29,7 +29,11 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
           table_id TEXT NOT NULL,
           column_key TEXT NOT NULL,
           display_name TEXT NOT NULL,
-          field_type TEXT NOT NULL CHECK (field_type IN ('text', 'long_text', 'date', 'checkbox', 'link')),
+          field_type TEXT NOT NULL CHECK (field_type IN (
+            'text', 'long_text', 'date', 'checkbox', 'link',
+            'number', 'currency', 'percent', 'email', 'url', 'phone',
+            'single_select', 'multi_select', 'rating', 'duration'
+          )),
           field_order INTEGER NOT NULL,
           is_visible INTEGER NOT NULL DEFAULT 1,
           is_primary_label INTEGER NOT NULL DEFAULT 0,
@@ -38,6 +42,19 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
           FOREIGN KEY(table_id) REFERENCES app_tables(id) ON DELETE CASCADE,
           UNIQUE(table_id, column_key)
         );
+
+        CREATE TABLE IF NOT EXISTS app_field_options (
+          id TEXT PRIMARY KEY,
+          field_id TEXT NOT NULL,
+          label TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT 'default',
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(field_id) REFERENCES app_fields(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_field_options_field_id
+          ON app_field_options(field_id);
 
         CREATE TABLE IF NOT EXISTS app_views (
           id TEXT PRIMARY KEY,
@@ -83,6 +100,8 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
           ON record_attachments(table_id, record_id);
         "#,
     )?;
+
+    migrate_field_type_constraint(conn)?;
 
     seed_starter_tables(conn)?;
 
@@ -163,6 +182,52 @@ fn seed_starter_tables(conn: &Connection) -> Result<()> {
             crate::db::now_iso(),
         ),
     )?;
+
+    Ok(())
+}
+
+/// Migrates the app_fields table to expand the field_type CHECK constraint.
+/// Uses the table-recreation pattern since SQLite does not support ALTER COLUMN.
+/// Idempotent: checks the existing schema before running.
+fn migrate_field_type_constraint(conn: &Connection) -> Result<()> {
+    let schema_sql: String = conn.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='app_fields'",
+        [],
+        |row| row.get(0),
+    )?;
+
+    if schema_sql.contains("'number'") {
+        return Ok(()); // Already on the expanded schema
+    }
+
+    conn.execute_batch(r#"
+        PRAGMA foreign_keys = OFF;
+
+        CREATE TABLE IF NOT EXISTS app_fields_v2 (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          column_key TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          field_type TEXT NOT NULL CHECK (field_type IN (
+            'text', 'long_text', 'date', 'checkbox', 'link',
+            'number', 'currency', 'percent', 'email', 'url', 'phone',
+            'single_select', 'multi_select', 'rating', 'duration'
+          )),
+          field_order INTEGER NOT NULL,
+          is_visible INTEGER NOT NULL DEFAULT 1,
+          is_primary_label INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(table_id) REFERENCES app_tables(id) ON DELETE CASCADE,
+          UNIQUE(table_id, column_key)
+        );
+
+        INSERT INTO app_fields_v2 SELECT * FROM app_fields;
+        DROP TABLE app_fields;
+        ALTER TABLE app_fields_v2 RENAME TO app_fields;
+
+        PRAGMA foreign_keys = ON;
+    "#)?;
 
     Ok(())
 }

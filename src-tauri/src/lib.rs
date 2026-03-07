@@ -126,6 +126,13 @@ pub fn run() {
             commands::create_record_link,
             commands::delete_record_link,
             commands::list_record_options,
+            commands::list_field_options,
+            commands::create_field_option,
+            commands::update_field_option,
+            commands::delete_field_option,
+            commands::reorder_field_options,
+            commands::reorder_fields,
+            commands::toggle_field_visibility,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate application");

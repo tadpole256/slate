@@ -3,6 +3,7 @@ import { ArrowRightCircle, Link2, Trash2 } from "lucide-react";
 import type {
   AppField,
   AppTable,
+  FieldOption,
   RecordAttachment,
   RecordLink,
   RecordOption,
@@ -32,6 +33,8 @@ interface RecordDetailPanelProps {
   onDeleteAttachment: (attachmentId: string) => void;
   onOpenLink: (value: string) => void;
   onDeleteRecord: () => void;
+  fieldOptionsByField: Record<string, FieldOption[]>;
+  onCreateFieldOption: (fieldId: string, label: string) => Promise<void>;
 }
 
 export function RecordDetailPanel({
@@ -54,7 +57,9 @@ export function RecordDetailPanel({
   onOpenAttachment,
   onDeleteAttachment,
   onOpenLink,
-  onDeleteRecord
+  onDeleteRecord,
+  fieldOptionsByField,
+  onCreateFieldOption,
 }: RecordDetailPanelProps) {
   const [targetTableId, setTargetTableId] = useState("");
   const [targetRecordId, setTargetRecordId] = useState("");
@@ -129,8 +134,10 @@ export function RecordDetailPanel({
             key={field.id}
             field={field}
             value={selectedRecord.values[field.column_key] ?? null}
+            fieldOptions={fieldOptionsByField[field.id] ?? []}
             onChange={(value) => onFieldChange(field.column_key, value)}
             onOpenLink={onOpenLink}
+            onCreateFieldOption={onCreateFieldOption}
           />
         ))}
 

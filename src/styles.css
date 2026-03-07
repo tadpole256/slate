@@ -716,6 +716,330 @@ button {
   gap: 0.55rem;
 }
 
+/* ── Field type picker in AddColumnModal ── */
+.field-type-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.field-type-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.field-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.4rem;
+}
+
+.field-type-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+}
+
+.field-type-option:hover {
+  background: var(--elevated-2);
+  border-color: var(--accent-primary);
+}
+
+.field-type-option.selected {
+  border-color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.field-type-option-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.field-type-option-desc {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+/* ── Rating stars ── */
+.rating-cell {
+  vertical-align: middle;
+}
+
+.rating-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.rating-stars.large .star-btn {
+  font-size: 1.4rem;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1rem;
+  color: var(--border);
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.1s;
+}
+
+.star-btn.filled {
+  color: #f59e0b;
+}
+
+.star-btn:hover {
+  color: #f59e0b;
+}
+
+/* ── Number prefix/suffix ── */
+.number-prefix-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.number-prefix,
+.number-suffix {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.number-input {
+  text-align: right;
+}
+
+/* ── Select chips ── */
+.select-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.multi-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+/* ── Single select cell (grid) ── */
+.select-cell-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.select-cell-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Select field editor (detail panel) ── */
+.select-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.select-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.select-chip.selectable {
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.1s;
+}
+
+.select-chip.selectable:hover {
+  filter: brightness(1.1);
+}
+
+.select-chip.selectable.selected-opt {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.select-add-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.select-add-row input {
+  flex: 1;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.select-add-btn {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.multi-selected-display {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.field-editor-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* ── Sort indicator in header ── */
+.header-cell-sort-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sort-indicator {
+  font-size: 0.65rem;
+  color: var(--accent-primary);
+  margin-left: 2px;
+}
+
+.sort-indicator.inactive {
+  color: var(--border);
+}
+
+/* ── Toolbar with filter/hide ── */
+.table-toolbar-wrap {
+  flex-shrink: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.action-button.active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: var(--accent-primary);
+}
+
+/* ── Hide fields panel ── */
+.hide-fields-panel {
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hide-fields-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin: 0 0 0.35rem;
+}
+
+.hide-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+/* ── Filter bar ── */
+.filter-bar {
+  background: var(--elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-bar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filter-row select {
+  background: var(--elevated-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.82rem;
+}
+
+.filter-value-input {
+  flex: 1;
+  background: var(--elevated-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.82rem;
+}
+
+.filter-value-empty {
+  flex: 1;
+}
+
+.filter-add-btn {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.5rem;
+  align-self: flex-start;
+}
+
 @media (max-width: 1200px) {
   .app-shell {
     grid-template-columns: 230px minmax(0, 1fr) 300px;

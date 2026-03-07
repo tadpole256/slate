@@ -89,12 +89,12 @@ fn backend_crud_search_and_links_work() {
         record_service::update_record(&conn, &people.id, &created.record_id, &updates).expect("update record");
     assert_eq!(updated.values.get(&email_key), Some(&json!("alice@updated.dev")));
 
-    let filtered = record_service::list_records(&conn, &people.id, Some("updated.dev"))
+    let filtered = record_service::list_records(&conn, &people.id, Some("updated.dev"), None, None)
         .expect("search should succeed");
     assert_eq!(filtered.len(), 1);
 
     let empty =
-        record_service::list_records(&conn, &people.id, Some("this-will-not-match")).expect("search should work");
+        record_service::list_records(&conn, &people.id, Some("this-will-not-match"), None, None).expect("search should work");
     assert_eq!(empty.len(), 0);
 
     let projects = table_service::create_table(&conn, "Projects").expect("create projects table");
@@ -135,7 +135,7 @@ fn backend_crud_search_and_links_work() {
     assert!(delete_last_attempt.is_err());
 
     record_service::delete_record(&conn, &people.id, &created.record_id).expect("delete record");
-    let rows_after_delete = record_service::list_records(&conn, &people.id, None).expect("list after delete");
+    let rows_after_delete = record_service::list_records(&conn, &people.id, None, None, None).expect("list after delete");
     assert_eq!(rows_after_delete.len(), 0);
 
     table_service::delete_table(&conn, &people.id).expect("delete table");

@@ -1,4 +1,4 @@
-import type { AppField, RecordRow } from "../../types/slate";
+import type { AppField, FieldOption, RecordRow, SortDirection } from "../../types/slate";
 import { EmptyState } from "../common/EmptyState";
 import { TableCell } from "./TableCell";
 import { TableHeaderCell } from "./TableHeaderCell";
@@ -6,8 +6,11 @@ import { TableHeaderCell } from "./TableHeaderCell";
 interface TableGridProps {
   fields: AppField[];
   records: RecordRow[];
+  fieldOptionsByField: Record<string, FieldOption[]>;
+  sortByField: Record<string, SortDirection>;
   selectedRecordId: string | null;
   onSelectRecord: (recordId: string) => void;
+  onSortField: (field: AppField) => void;
   onCellChange: (
     recordId: string,
     columnKey: string,
@@ -21,12 +24,15 @@ interface TableGridProps {
 export function TableGrid({
   fields,
   records,
+  fieldOptionsByField,
+  sortByField,
   selectedRecordId,
   onSelectRecord,
+  onSortField,
   onCellChange,
   onOpenLink,
   onRenameField,
-  onDeleteField
+  onDeleteField,
 }: TableGridProps) {
   if (!fields.length) {
     return <EmptyState title="No columns" message="Add a column to start collecting data." />;
@@ -41,6 +47,8 @@ export function TableGrid({
               <TableHeaderCell
                 key={field.id}
                 field={field}
+                sortDirection={sortByField[field.id] ?? null}
+                onSort={onSortField}
                 onRename={onRenameField}
                 onDelete={onDeleteField}
               />
@@ -59,6 +67,7 @@ export function TableGrid({
                   key={`${row.record_id}:${field.id}`}
                   field={field}
                   row={row}
+                  fieldOptions={fieldOptionsByField[field.id] ?? []}
                   onChange={(value) => onCellChange(row.record_id, field.column_key, value)}
                   onOpenLink={onOpenLink}
                 />
