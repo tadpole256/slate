@@ -4,13 +4,13 @@ mod models;
 mod services;
 #[cfg(test)]
 mod tests;
-mod test_menu;
 
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
 use rusqlite::Connection;
+use tauri::menu::{AboutMetadata, Menu, PredefinedMenuItem, Submenu};
 use tauri::Manager;
 
 pub struct AppState {
@@ -39,6 +39,71 @@ fn initialize_state(
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                let app_name = &app.package_info().name;
+                
+                let about_meta = AboutMetadata {
+                    version: Some(app.package_info().version.to_string()),
+                    authors: Some(vec!["Anthony McCloskey".to_string()]),
+                    website: Some("https://anthonymccloskey.com".to_string()),
+                    license: Some("GNU General Public License v3.0".to_string()),
+                    comments: Some("Created by Anthony McCloskey.\nFree & Open Source Desktop Workspace.".to_string()),
+                    ..Default::default()
+                };
+                    
+                let about_item = PredefinedMenuItem::about(app, Some("About Slate"), Some(about_meta))?;
+                
+                let app_submenu = Submenu::with_items(
+                    app,
+                    app_name,
+                    true,
+                    &[
+                        &about_item,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::services(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::hide(app, None)?,
+                        &PredefinedMenuItem::hide_others(app, None)?,
+                        &PredefinedMenuItem::show_all(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::quit(app, None)?,
+                    ],
+                )?;
+                
+                let edit_submenu = Submenu::with_id_and_items(
+                    app,
+                    "edit",
+                    "Edit",
+                    true,
+                    &[
+                        &PredefinedMenuItem::undo(app, None)?,
+                        &PredefinedMenuItem::redo(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::cut(app, None)?,
+                        &PredefinedMenuItem::copy(app, None)?,
+                        &PredefinedMenuItem::paste(app, None)?,
+                        &PredefinedMenuItem::select_all(app, None)?,
+                    ],
+                )?;
+
+                let window_submenu = Submenu::with_id_and_items(
+                    app,
+                    "window",
+                    "Window",
+                    true,
+                    &[
+                        &PredefinedMenuItem::minimize(app, None)?,
+                        &PredefinedMenuItem::maximize(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::close_window(app, None)?,
+                    ],
+                )?;
+                
+                let menu = Menu::with_items(app, &[&app_submenu, &edit_submenu, &window_submenu])?;
+                app.set_menu(menu)?;
+            }
+
             let state = std::sync::Arc::new(initialize_state(app)?);
             app.manage(state);
             Ok(())
