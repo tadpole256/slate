@@ -31,29 +31,46 @@ where
     F: FnOnce(&rusqlite::Connection) -> anyhow::Result<T> + Send + 'static,
     T: Send + 'static,
 {
+    println!("with_conn: starting");
     let state_clone = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        println!("with_conn: inside spawn_blocking, acquiring lock...");
         let mut guard = state_clone
             .conn
             .lock()
             .map_err(|_| "Failed to acquire database lock".to_string())?;
 
+        println!("with_conn: acquired lock");
         if guard.is_none() {
+            println!("with_conn: connection is None, opening...");
             let conn = open_connection(&state_clone.db_path).map_err(|e| e.to_string())?;
             *guard = Some(conn);
         }
 
-        operation(guard.as_ref().unwrap()).map_err(|error| error.to_string())
+        println!("with_conn: running operation...");
+        let res = operation(guard.as_ref().unwrap()).map_err(|error| {
+            println!("with_conn: operation error: {:?}", error);
+            error.to_string()
+        });
+        println!("with_conn: operation completed");
+        res
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| {
+        println!("with_conn: spawn_blocking error: {:?}", e);
+        e.to_string()
+    })?
 }
 
 #[tauri::command]
 pub async fn init_app(state: State<'_, std::sync::Arc<AppState>>) -> CommandResult<InitResponse> {
+    println!("DEBUG: init_app invoked from frontend!");
     with_conn(state, move |conn| {
+        println!("DEBUG: init_app executing within with_conn");
         table_service::repair_all_table_storage(conn)?;
+        println!("DEBUG: init_app repaired table storage");
         let tables = metadata_service::list_tables(conn)?;
+        println!("DEBUG: init_app listed tables, finishing");
         Ok(InitResponse { tables })
     }).await
 }

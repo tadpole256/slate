@@ -32,6 +32,8 @@ import type {
 } from "../types/slate";
 
 interface WorkspaceState {
+  debugLogs: string[];
+  addDebugLog: (msg: string) => void;
   loading: boolean;
   error: string | null;
   tables: AppTable[];
@@ -164,6 +166,8 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, message: string):
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
+  debugLogs: [],
+  addDebugLog: (msg) => set((s) => ({ debugLogs: [...s.debugLogs, `${new Date().toISOString().substring(11, 23)} - ${msg}`] })),
   loading: true,
   error: null,
   tables: [],
@@ -182,14 +186,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   addColumnModalOpen: false,
 
   initialize: async () => {
+    get().addDebugLog("1. initialize() function started");
     set({ loading: true, error: null });
 
     try {
+      get().addDebugLog("2. Handing off to withTimeout(initApp)");
+      const initPromise = initApp();
+      get().addDebugLog("3. initApp() Promise created");
+
       const init = await withTimeout(
-        initApp(),
+        initPromise,
         8000,
         "Slate backend did not respond during startup. Restart the app and try again."
       );
+
+      get().addDebugLog(`4. initApp() resolved, returned ${init.tables.length} tables`);
       const tables = init.tables;
 
       set({
@@ -197,14 +208,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         activeTableId: tables[0]?.id ?? null,
         loading: false
       });
+      get().addDebugLog("5. Loading state set to false in Zustand");
 
       if (tables[0]?.id) {
+        get().addDebugLog("6. Calling refreshActiveTable");
         await get().refreshActiveTable();
+        get().addDebugLog("7. refreshActiveTable resolved");
       }
     } catch (error) {
+      const msg = toErrorMessage(error, "Failed to initialize Slate");
+      get().addDebugLog("ERROR: " + msg);
       set({
         loading: false,
-        error: toErrorMessage(error, "Failed to initialize Slate")
+        error: msg
       });
     }
   },

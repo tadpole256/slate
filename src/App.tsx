@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AddColumnModal } from "./components/common/AddColumnModal";
 import { CreateTableModal } from "./components/common/CreateTableModal";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -26,6 +26,7 @@ export default function App() {
     searchQuery,
     createTableModalOpen,
     addColumnModalOpen,
+    debugLogs,
     initialize,
     forceStartupFailure,
     setActiveTable,
@@ -77,8 +78,12 @@ export default function App() {
     window.open(normalized, "_blank", "noopener,noreferrer");
   };
 
+  const initRef = useRef(false);
   useEffect(() => {
-    void initialize();
+    if (!initRef.current) {
+      initRef.current = true;
+      void initialize();
+    }
   }, [initialize]);
 
   useEffect(() => {
@@ -272,19 +277,14 @@ export default function App() {
       />
 
       {loading && !error ? (
-        <div className="loading-overlay" style={{flexDirection: "column", padding: '1rem'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+        <div className="loading-overlay" style={{ flexDirection: 'column', alignItems: 'stretch', padding: '1rem', minWidth: '350px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <div className="loading-spinner" aria-hidden="true" />
             <span>Loading Slate...</span>
           </div>
-          <pre style={{fontSize: '10px', color: '#ff0'}}>
-            {JSON.stringify({
-              time: new Date().toISOString(),
-              tablesLen: tables.length,
-              loading,
-              error
-            }, null, 2)}
-          </pre>
+          <div style={{ fontSize: '11px', color: '#ffd700', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', textAlign: 'left', background: 'rgba(0,0,0,0.5)', padding: '0.5rem', borderRadius: '4px' }}>
+            {debugLogs.length === 0 ? "Waiting for logs..." : debugLogs.join("\n")}
+          </div>
         </div>
       ) : null}
       {error ? <div className="error-banner">{error}</div> : null}
