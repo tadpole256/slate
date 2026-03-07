@@ -4,6 +4,7 @@ mod models;
 mod services;
 #[cfg(test)]
 mod tests;
+mod test_menu;
 
 use std::fs;
 use std::path::PathBuf;
