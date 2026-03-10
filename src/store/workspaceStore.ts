@@ -14,7 +14,10 @@ import {
   deleteRecordLink as deleteRecordLinkApi,
   deleteTable,
   deleteView as deleteViewApi,
+  deleteRecords as deleteRecordsApi,
+  exportCsv as exportCsvApi,
   getTableSnapshot,
+  importCsv as importCsvApi,
   initApp,
   listRecordAttachments as listRecordAttachmentsApi,
   listRecordLinks as listRecordLinksApi,
@@ -71,6 +74,8 @@ interface WorkspaceState {
   hiddenFieldIdsByTable: Record<string, string[]>;
   rowHeightByTable: Record<string, RowHeight>;
   kanbanGroupByFieldIdByTable: Record<string, string | null>;
+  groupByFieldIdByTable: Record<string, string | null>;
+  calendarDateFieldIdByTable: Record<string, string | null>;
   createTableModalOpen: boolean;
   addColumnModalOpen: boolean;
   initialize: () => Promise<void>;
@@ -85,6 +90,9 @@ interface WorkspaceState {
   setActiveView: (tableId: string, viewId: string) => void;
   setRowHeight: (tableId: string, height: RowHeight) => Promise<void>;
   setKanbanGroupByField: (tableId: string, fieldId: string) => Promise<void>;
+  setGroupByField: (tableId: string, fieldId: string | null) => Promise<void>;
+  setCalendarDateField: (tableId: string, fieldId: string | null) => Promise<void>;
+  bulkDeleteRecords: (tableId: string, recordIds: string[]) => Promise<void>;
   createView: (tableId: string, name: string, viewType: string) => Promise<void>;
   renameView: (viewId: string, tableId: string, name: string) => Promise<void>;
   deleteView: (tableId: string, viewId: string) => Promise<void>;
@@ -127,6 +135,8 @@ interface WorkspaceState {
   createFieldOption: (fieldId: string, label: string, color?: string) => Promise<FieldOption | null>;
   updateFieldOption: (fieldId: string, optionId: string, label: string, color: string) => Promise<void>;
   deleteFieldOption: (fieldId: string, optionId: string) => Promise<void>;
+  exportCsvTable: (tableId: string) => Promise<void>;
+  importCsvToTable: (tableId: string) => Promise<void>;
 }
 
 function buildDefaultValues(fields: AppField[]): Record<string, string | number | null> {
@@ -209,6 +219,8 @@ function parseViewConfig(configJson: string): ViewConfig {
       hiddenFieldIds: parsed.hiddenFieldIds ?? [],
       kanbanGroupByFieldId: parsed.kanbanGroupByFieldId,
       rowHeight: parsed.rowHeight,
+      groupByFieldId: parsed.groupByFieldId,
+      calendarDateFieldId: parsed.calendarDateFieldId,
     };
   } catch {
     return { hiddenFieldIds: [] };
@@ -240,6 +252,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   hiddenFieldIdsByTable: {},
   rowHeightByTable: {},
   kanbanGroupByFieldIdByTable: {},
+  groupByFieldIdByTable: {},
+  calendarDateFieldIdByTable: {},
   createTableModalOpen: false,
   addColumnModalOpen: false,
 
@@ -333,6 +347,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             hiddenFieldIdsByTable: { ...state.hiddenFieldIdsByTable, [activeTableId]: config.hiddenFieldIds },
             rowHeightByTable: { ...state.rowHeightByTable, [activeTableId]: config.rowHeight ?? "default" },
             kanbanGroupByFieldIdByTable: { ...state.kanbanGroupByFieldIdByTable, [activeTableId]: config.kanbanGroupByFieldId ?? null },
+            groupByFieldIdByTable: { ...state.groupByFieldIdByTable, [activeTableId]: config.groupByFieldId ?? null },
+            calendarDateFieldIdByTable: { ...state.calendarDateFieldIdByTable, [activeTableId]: config.calendarDateFieldId ?? null },
           };
         }
 
@@ -418,6 +434,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       hiddenFieldIdsByTable: { ...state.hiddenFieldIdsByTable, [tableId]: config.hiddenFieldIds },
       rowHeightByTable: { ...state.rowHeightByTable, [tableId]: config.rowHeight ?? "default" },
       kanbanGroupByFieldIdByTable: { ...state.kanbanGroupByFieldIdByTable, [tableId]: config.kanbanGroupByFieldId ?? null },
+      groupByFieldIdByTable: { ...state.groupByFieldIdByTable, [tableId]: config.groupByFieldId ?? null },
+      calendarDateFieldIdByTable: { ...state.calendarDateFieldIdByTable, [tableId]: config.calendarDateFieldId ?? null },
     }));
   },
 
@@ -471,11 +489,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   saveActiveViewConfig: async (tableId) => {
-    const { activeViewIdByTable, hiddenFieldIdsByTable } = get();
+    const { activeViewIdByTable, hiddenFieldIdsByTable, rowHeightByTable, kanbanGroupByFieldIdByTable, groupByFieldIdByTable, calendarDateFieldIdByTable } = get();
     const viewId = activeViewIdByTable[tableId];
     if (!viewId) return;
+    const rowHeight = rowHeightByTable[tableId];
+    const kanbanGroupByFieldId = kanbanGroupByFieldIdByTable[tableId] ?? undefined;
+    const groupByFieldId = groupByFieldIdByTable[tableId] ?? undefined;
+    const calendarDateFieldId = calendarDateFieldIdByTable[tableId] ?? undefined;
     const config: ViewConfig = {
       hiddenFieldIds: hiddenFieldIdsByTable[tableId] ?? [],
+      ...(kanbanGroupByFieldId ? { kanbanGroupByFieldId } : {}),
+      ...(rowHeight && rowHeight !== "default" ? { rowHeight } : {}),
+      ...(groupByFieldId ? { groupByFieldId } : {}),
+      ...(calendarDateFieldId ? { calendarDateFieldId } : {}),
     };
     try {
       const updated = await updateViewConfigApi(viewId, JSON.stringify(config));
@@ -489,6 +515,51 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       }));
     } catch {
       // non-critical
+    }
+  },
+
+  setRowHeight: async (tableId, height) => {
+    set((state) => ({
+      rowHeightByTable: { ...state.rowHeightByTable, [tableId]: height },
+    }));
+    await get().saveActiveViewConfig(tableId);
+  },
+
+  setKanbanGroupByField: async (tableId, fieldId) => {
+    set((state) => ({
+      kanbanGroupByFieldIdByTable: { ...state.kanbanGroupByFieldIdByTable, [tableId]: fieldId },
+    }));
+    await get().saveActiveViewConfig(tableId);
+  },
+
+  setGroupByField: async (tableId, fieldId) => {
+    set((state) => ({
+      groupByFieldIdByTable: { ...state.groupByFieldIdByTable, [tableId]: fieldId },
+    }));
+    await get().saveActiveViewConfig(tableId);
+  },
+
+  setCalendarDateField: async (tableId, fieldId) => {
+    set((state) => ({
+      calendarDateFieldIdByTable: { ...state.calendarDateFieldIdByTable, [tableId]: fieldId },
+    }));
+    await get().saveActiveViewConfig(tableId);
+  },
+
+  bulkDeleteRecords: async (tableId, recordIds) => {
+    if (!recordIds.length) return;
+    try {
+      await deleteRecordsApi(tableId, recordIds);
+      const idSet = new Set(recordIds);
+      set((state) => ({
+        recordsByTable: {
+          ...state.recordsByTable,
+          [tableId]: (state.recordsByTable[tableId] ?? []).filter((r) => !idSet.has(r.record_id)),
+        },
+        selectedRecordId: idSet.has(state.selectedRecordId ?? "") ? null : state.selectedRecordId,
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to delete records") });
     }
   },
 
@@ -902,5 +973,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to delete field option") });
     }
-  }
+  },
+
+  exportCsvTable: async (tableId) => {
+    try {
+      await exportCsvApi(tableId);
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to export CSV") });
+    }
+  },
+
+  importCsvToTable: async (tableId) => {
+    try {
+      const count = await importCsvApi(tableId);
+      if (count !== null && count > 0) {
+        await get().refreshActiveTable();
+      }
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to import CSV") });
+    }
+  },
 }));

@@ -16,20 +16,43 @@ Created by [Anthony McCloskey](https://anthonymccloskey.com).
 
 ### Available now
 
+**Tables & Fields**
 - Local SQLite-backed tables and records
 - Table CRUD: create, rename, delete
 - Field CRUD: create, rename, delete
-- Field types: `text`, `long_text`, `date`, `checkbox`, `link`
-- Grid editing + record detail panel editing
-- Per-table search
+- 15 field types: `text`, `long_text`, `number`, `currency`, `percent`, `email`, `url`, `phone`, `date`, `checkbox`, `single_select`, `multi_select`, `rating`, `duration`
+- Select field options: add, rename, recolor, reorder, delete chips
+
+**Grid View**
+- Inline grid editing with type-aware cell renderers (stars for rating, chips for select, mailto/tel links, etc.)
+- Expandable record detail panel (side panel) and full-screen expand modal (double-click row)
+- Per-table full-text search
+- Column visibility toggles (show/hide fields panel)
+- Column sort (click header to cycle asc → desc → none)
+- Filters with 10 operators: `eq`, `neq`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `gt`, `lt`, `gte`, `lte`
+- Row height modes: compact / default / tall
+- Keyboard navigation: arrow keys, Tab, Enter to expand, Escape to close
+
+**Multiple View Types**
+- **Grid** — the default spreadsheet-style view
+- **Gallery** — card grid with primary field and field preview
+- **Kanban** — group by any single-select field; drag cards between columns
+- Named views per table with independent sorts, filters, and field visibility
+
+**Data In / Out**
+- CSV import (maps columns to fields by name, case-insensitive)
+- CSV export (native save dialog)
 - Cross-table record linking
-- Record attachments (attach/open/remove files)
+- Record attachments (attach, open, remove local files)
 
 ### Planned next
 
-- Saved views and richer filtering/sorting
-- Formula/derived field exploration
-- UX polish and additional keyboard shortcuts
+- **Calendar view** — group records by a date field in a month/week layout
+- **Formula fields** — computed values using `evalexpr` (arithmetic, IF, string concat, DATEADD)
+- **Lookup / Rollup fields** — aggregate linked record values (SUM, COUNT, MIN, MAX, AVG)
+- **Bulk operations** — checkbox multi-select, bulk delete, bulk field update
+- **Column drag-and-drop reorder**
+- **JSON export**
 
 ## Stack
 

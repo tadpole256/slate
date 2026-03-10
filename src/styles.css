@@ -1347,6 +1347,481 @@ button {
 .kanban-card:hover { border-color: var(--accent-primary); }
 .kanban-card.selected { border-color: var(--accent-primary); background: rgba(59,130,246,0.1); }
 
+/* ───── Row height variants ─────────────────────────────────── */
+
+/* compact: tight rows */
+.table-grid.grid-compact tbody tr td,
+.table-grid.grid-compact .table-cell {
+  height: 26px;
+  max-height: 26px;
+  overflow: hidden;
+}
+.table-grid.grid-compact .grid-input,
+.table-grid.grid-compact .grid-textarea {
+  padding: 0 4px;
+  line-height: 24px;
+  font-size: 0.78rem;
+}
+.table-grid.grid-compact .table-cell {
+  padding: 0;
+}
+
+/* tall: relaxed rows */
+.table-grid.grid-tall tbody tr td,
+.table-grid.grid-tall .table-cell {
+  height: 64px;
+  vertical-align: top;
+}
+.table-grid.grid-tall .grid-input {
+  padding: 6px 8px;
+}
+.table-grid.grid-tall .grid-textarea {
+  padding: 6px 8px;
+  height: 58px;
+  resize: none;
+}
+
+/* ───── Keyboard navigation focus indicator ──────────────────── */
+
+.table-grid tbody tr.focused-row {
+  outline: 2px solid rgba(59, 130, 246, 0.45);
+  outline-offset: -1px;
+}
+
+.table-cell.cell-focused {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+/* ───── Row height toggle button group ───────────────────────── */
+
+.row-height-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.row-height-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.row-height-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--text-primary);
+}
+.row-height-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+.row-height-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ───── Expanded Record Modal ────────────────────────────────── */
+
+.expanded-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 2rem;
+}
+
+.expanded-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.expanded-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.expanded-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.expanded-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expanded-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.expanded-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ───── Phase 6A: Group-by section headers ───────────────────── */
+
+.group-header-row {
+  background: var(--elevated);
+  cursor: pointer;
+  user-select: none;
+}
+
+.group-header-row:hover {
+  background: var(--elevated-2);
+}
+
+.group-header-cell {
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+
+.group-header-toggle {
+  font-size: 0.7rem;
+  margin-right: 0.5rem;
+  color: var(--accent-primary);
+}
+
+.group-header-label {
+  margin-right: 0.5rem;
+}
+
+.group-header-count {
+  background: var(--elevated-2);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* ───── Phase 6A: Checkbox column ────────────────────────────── */
+
+.checkbox-col {
+  width: 36px;
+  min-width: 36px;
+  text-align: center;
+  padding: 0 6px !important;
+}
+
+th.checkbox-col {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--elevated);
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+.table-grid tbody tr.checked-row {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ───── Phase 6A: Group-by selector in toolbar ───────────────── */
+
+.group-by-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(140, 120, 255, 0.35);
+  background: linear-gradient(120deg, rgba(139, 92, 246, 0.32), rgba(139, 92, 246, 0.1));
+  border-radius: 10px;
+  padding: 0.3rem 0.6rem;
+}
+
+.group-by-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.group-by-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0;
+  min-width: 80px;
+}
+
+.group-by-select option {
+  background: var(--elevated-2);
+  color: var(--text-primary);
+}
+
+/* ───── Phase 6A: Danger button for bulk delete ──────────────── */
+
+.action-button.danger {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: linear-gradient(120deg, rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0.15));
+  color: #fca5a5;
+}
+
+.action-button.danger:hover {
+  border-color: rgba(239, 68, 68, 0.8);
+}
+
+/* ───── Phase 6B: Calendar view ──────────────────────────────── */
+
+.calendar-view-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.calendar-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calendar-month-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 160px;
+  text-align: center;
+}
+
+.calendar-date-field-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.calendar-date-field-picker select {
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.calendar-no-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.calendar-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: auto;
+  gap: 1px;
+  background: var(--border);
+  padding: 0;
+}
+
+.calendar-day-header {
+  background: var(--elevated);
+  text-align: center;
+  padding: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.calendar-cell {
+  background: var(--panel);
+  min-height: 90px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-cell-faded {
+  background: var(--bg);
+  opacity: 0.6;
+}
+
+.calendar-cell-today .calendar-day-num {
+  background: var(--accent-primary);
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-day-num {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: inline-block;
+  margin-bottom: 2px;
+}
+
+.calendar-cell-records {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.calendar-record-chip {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s;
+}
+
+.calendar-record-chip:hover {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+/* ───── Phase 6D: Command Palette ────────────────────────────── */
+
+.command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 1200;
+  padding-top: 15vh;
+}
+
+.command-palette {
+  background: var(--elevated-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: min(560px, 90vw);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.command-palette-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.command-palette-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.command-palette-list {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 0.4rem 0;
+}
+
+.command-palette-group {
+  margin-bottom: 4px;
+}
+
+.command-palette-category {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  padding: 0.3rem 1rem;
+}
+
+.command-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.command-palette-item:hover,
+.command-palette-item.active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--text-primary);
+}
+
+.command-palette-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
 /* ─────────────────────────────────────────────────────────────── */
 
 @media (max-width: 1200px) {

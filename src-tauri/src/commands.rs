@@ -17,7 +17,7 @@ use crate::models::{
     SortInput,
     TableSnapshot,
 };
-use crate::services::{attachment_service, field_option_service, link_service, metadata_service, record_service, table_service, view_service};
+use crate::services::{attachment_service, csv_service, field_option_service, link_service, metadata_service, record_service, table_service, view_service};
 use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
@@ -192,9 +192,10 @@ pub async fn create_field(
     table_id: String,
     display_name: String,
     field_type: String,
+    computed_config: Option<String>,
 ) -> CommandResult<AppField> {
     with_conn(state, move |conn| {
-        table_service::create_field(conn, &table_id, &display_name, &field_type)
+        table_service::create_field(conn, &table_id, &display_name, &field_type, computed_config.as_deref())
     }).await
 }
 
@@ -242,6 +243,23 @@ pub async fn delete_record(
         attachment_service::delete_attachments_for_record(conn, &attachments_dir, &table_id, &record_id)?;
         link_service::delete_links_for_record(conn, &table_id, &record_id)?;
         record_service::delete_record(conn, &table_id, &record_id)
+    }).await
+}
+
+#[tauri::command]
+pub async fn delete_records(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    record_ids: Vec<String>,
+) -> CommandResult<()> {
+    let attachments_dir = state.attachments_dir.clone();
+    with_conn(state, move |conn| {
+        for record_id in &record_ids {
+            attachment_service::delete_attachments_for_record(conn, &attachments_dir, &table_id, record_id)?;
+            link_service::delete_links_for_record(conn, &table_id, record_id)?;
+            record_service::delete_record(conn, &table_id, record_id)?;
+        }
+        Ok(())
     }).await
 }
 
@@ -398,5 +416,25 @@ pub async fn toggle_field_visibility(
 ) -> CommandResult<AppField> {
     with_conn(state, move |conn| {
         table_service::toggle_field_visibility(conn, &field_id)
+    }).await
+}
+
+#[tauri::command]
+pub async fn export_csv(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+) -> CommandResult<Option<String>> {
+    with_conn(state, move |conn| {
+        csv_service::export_csv(conn, &table_id)
+    }).await
+}
+
+#[tauri::command]
+pub async fn import_csv(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+) -> CommandResult<Option<usize>> {
+    with_conn(state, move |conn| {
+        csv_service::import_csv(conn, &table_id)
     }).await
 }

@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { AddColumnModal } from "./components/common/AddColumnModal";
+import { CommandPalette } from "./components/common/CommandPalette";
 import { CreateTableModal } from "./components/common/CreateTableModal";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Sidebar } from "./components/layout/Sidebar";
 import { TopBar } from "./components/layout/TopBar";
+import { ExpandedRecordModal } from "./components/record/ExpandedRecordModal";
 import { RecordDetailPanel } from "./components/record/RecordDetailPanel";
 import { MainTableView } from "./components/table/MainTableView";
 import { AddViewModal } from "./components/views/AddViewModal";
+import { CalendarView } from "./components/views/CalendarView";
 import { GalleryView } from "./components/views/GalleryView";
 import { KanbanView } from "./components/views/KanbanView";
 import { ViewTabsBar } from "./components/views/ViewTabsBar";
 import { useWorkspaceStore } from "./store/workspaceStore";
-import type { ViewType } from "./types/slate";
+import type { RowHeight, ViewType } from "./types/slate";
 
 let hasInitialized = false;
 
@@ -63,6 +66,10 @@ export default function App() {
     viewsByTable,
     activeViewIdByTable,
     hiddenFieldIdsByTable,
+    rowHeightByTable,
+    kanbanGroupByFieldIdByTable,
+    groupByFieldIdByTable,
+    calendarDateFieldIdByTable,
     createFieldOption,
     setSorts,
     setFilters,
@@ -71,9 +78,18 @@ export default function App() {
     createView,
     renameView,
     deleteView,
+    setRowHeight,
+    setKanbanGroupByField,
+    setGroupByField,
+    setCalendarDateField,
+    bulkDeleteRecords,
+    exportCsvTable,
+    importCsvToTable,
   } = useWorkspaceStore();
 
   const [addViewModalOpen, setAddViewModalOpen] = useState(false);
+  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   const activeTable = tables.find((table) => table.id === activeTableId) ?? null;
   const activeFields = activeTableId ? fieldsByTable[activeTableId] ?? [] : [];
@@ -83,27 +99,24 @@ export default function App() {
   const activeViews = activeTableId ? viewsByTable[activeTableId] ?? [] : [];
   const activeViewId = activeTableId ? activeViewIdByTable[activeTableId] ?? null : null;
   const activeHiddenFieldIds = activeTableId ? hiddenFieldIdsByTable[activeTableId] ?? [] : [];
+  const activeRowHeight: RowHeight = activeTableId ? rowHeightByTable[activeTableId] ?? "default" : "default";
+  const activeKanbanGroupByFieldId = activeTableId ? kanbanGroupByFieldIdByTable[activeTableId] ?? null : null;
+  const activeGroupByFieldId = activeTableId ? groupByFieldIdByTable[activeTableId] ?? null : null;
+  const activeCalendarDateFieldId = activeTableId ? calendarDateFieldIdByTable[activeTableId] ?? null : null;
   const activeView = activeViews.find((v) => v.id === activeViewId) ?? null;
 
   const selectedRecord =
     activeRecords.find((record) => record.record_id === selectedRecordId) ?? null;
+  const expandedRecord =
+    expandedRecordId !== null
+      ? activeRecords.find((r) => r.record_id === expandedRecordId) ?? null
+      : null;
   const selectedRecordAttachments =
     activeTableId && selectedRecordId
       ? attachmentsByRecord[`${activeTableId}:${selectedRecordId}`] ?? []
       : [];
   const selectedRecordLinks =
     activeTableId && selectedRecordId ? linksByRecord[`${activeTableId}:${selectedRecordId}`] ?? [] : [];
-
-  // Parse kanbanGroupByFieldId from active view config
-  const kanbanGroupByFieldId = (() => {
-    if (!activeView) return null;
-    try {
-      const cfg = JSON.parse(activeView.config_json) as { kanbanGroupByFieldId?: string };
-      return cfg.kanbanGroupByFieldId ?? null;
-    } catch {
-      return null;
-    }
-  })();
 
   const openLink = (value: string) => {
     const trimmed = value.trim();
@@ -137,22 +150,80 @@ export default function App() {
     return () => clearTimeout(watchdog);
   }, [loading, forceStartupFailure]);
 
-  function handleSetKanbanGroupBy(fieldId: string) {
-    if (!activeViewId) return;
-    const { saveActiveViewConfig } = useWorkspaceStore.getState();
-    // Merge into view config
-    if (activeView) {
-      try {
-        const cfg = JSON.parse(activeView.config_json) as Record<string, unknown>;
-        cfg["kanbanGroupByFieldId"] = fieldId;
-        void saveActiveViewConfig(activeTableId!);
-      } catch {
-        // ignore
+  // Cmd+K global listener for command palette
+  useEffect(() => {
+    function handleGlobalKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCommandPaletteOpen((v) => !v);
       }
     }
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
+  function handleExpandRecord(recordId: string) {
+    setExpandedRecordId(recordId);
+    selectRecord(recordId);
+  }
+
+  function handleCloseExpandedRecord() {
+    setExpandedRecordId(null);
   }
 
   const viewType: ViewType = (activeView?.view_type ?? "grid") as ViewType;
+
+  // Shared toolbar props reused across view types
+  const sharedToolbarProps = {
+    rowHeight: activeRowHeight,
+    onSetRowHeight: (height: RowHeight) => {
+      if (activeTableId) void setRowHeight(activeTableId, height);
+    },
+    onExportCsv: () => {
+      if (activeTableId) void exportCsvTable(activeTableId);
+    },
+    onImportCsv: () => {
+      if (activeTableId) void importCsvToTable(activeTableId);
+    },
+  };
+
+  // Common MainTableView stub used in gallery/kanban (toolbar only, no data rows)
+  function renderToolbarStub() {
+    return (
+      <MainTableView
+        table={activeTable}
+        fields={activeFields}
+        records={[]}
+        fieldOptionsByField={fieldOptionsByField}
+        sorts={activeSorts}
+        filters={activeFilters}
+        hiddenFieldIds={activeHiddenFieldIds}
+        selectedRecordId={selectedRecordId}
+        groupByFieldId={null}
+        onSelectRecord={selectRecord}
+        onExpandRecord={handleExpandRecord}
+        onCellChange={() => {}}
+        onOpenLink={openLink}
+        onAddColumn={() => setAddColumnModalOpen(true)}
+        onAddRow={() => {
+          if (activeTableId) void createRecord(activeTableId);
+        }}
+        onRenameField={(field) => {
+          const nextName = window.prompt("Rename column", field.display_name);
+          if (nextName) void renameField(field.id, nextName);
+        }}
+        onDeleteField={(field) => {
+          if (window.confirm(`Delete column "${field.display_name}"?`)) void deleteField(field.id);
+        }}
+        onSortsChange={(sorts) => { if (activeTableId) setSorts(activeTableId, sorts); }}
+        onFiltersChange={(filters) => { if (activeTableId) setFilters(activeTableId, filters); }}
+        onToggleFieldVisibility={(fieldId) => void toggleFieldVisibility(fieldId)}
+        onSetGroupByField={() => {}}
+        onBulkDelete={() => {}}
+        {...sharedToolbarProps}
+      />
+    );
+  }
 
   function renderMainContent() {
     if (!activeTable) {
@@ -165,6 +236,8 @@ export default function App() {
           sorts={[]}
           filters={[]}
           hiddenFieldIds={[]}
+          rowHeight="default"
+          groupByFieldId={null}
           selectedRecordId={null}
           onSelectRecord={selectRecord}
           onCellChange={() => {}}
@@ -176,6 +249,11 @@ export default function App() {
           onSortsChange={() => {}}
           onFiltersChange={() => {}}
           onToggleFieldVisibility={() => {}}
+          onSetRowHeight={() => {}}
+          onSetGroupByField={() => {}}
+          onBulkDelete={() => {}}
+          onExportCsv={() => {}}
+          onImportCsv={() => {}}
         />
       );
     }
@@ -183,33 +261,7 @@ export default function App() {
     if (viewType === "gallery") {
       return (
         <div className="gallery-view-wrap">
-          <MainTableView
-            table={activeTable}
-            fields={activeFields}
-            records={[]}
-            fieldOptionsByField={fieldOptionsByField}
-            sorts={activeSorts}
-            filters={activeFilters}
-            hiddenFieldIds={activeHiddenFieldIds}
-            selectedRecordId={selectedRecordId}
-            onSelectRecord={selectRecord}
-            onCellChange={() => {}}
-            onOpenLink={openLink}
-            onAddColumn={() => setAddColumnModalOpen(true)}
-            onAddRow={() => {
-              if (activeTableId) void createRecord(activeTableId);
-            }}
-            onRenameField={(field) => {
-              const nextName = window.prompt("Rename column", field.display_name);
-              if (nextName) void renameField(field.id, nextName);
-            }}
-            onDeleteField={(field) => {
-              if (window.confirm(`Delete column "${field.display_name}"?`)) void deleteField(field.id);
-            }}
-            onSortsChange={(sorts) => { if (activeTableId) setSorts(activeTableId, sorts); }}
-            onFiltersChange={(filters) => { if (activeTableId) setFilters(activeTableId, filters); }}
-            onToggleFieldVisibility={(fieldId) => void toggleFieldVisibility(fieldId)}
-          />
+          {renderToolbarStub()}
           <GalleryView
             fields={activeFields.filter((f) => !activeHiddenFieldIds.includes(f.id))}
             records={activeRecords}
@@ -227,41 +279,36 @@ export default function App() {
     if (viewType === "kanban") {
       return (
         <div className="kanban-view-wrap">
-          <MainTableView
-            table={activeTable}
-            fields={activeFields}
-            records={[]}
-            fieldOptionsByField={fieldOptionsByField}
-            sorts={activeSorts}
-            filters={activeFilters}
-            hiddenFieldIds={activeHiddenFieldIds}
-            selectedRecordId={selectedRecordId}
-            onSelectRecord={selectRecord}
-            onCellChange={() => {}}
-            onOpenLink={openLink}
-            onAddColumn={() => setAddColumnModalOpen(true)}
-            onAddRow={() => {
-              if (activeTableId) void createRecord(activeTableId);
-            }}
-            onRenameField={(field) => {
-              const nextName = window.prompt("Rename column", field.display_name);
-              if (nextName) void renameField(field.id, nextName);
-            }}
-            onDeleteField={(field) => {
-              if (window.confirm(`Delete column "${field.display_name}"?`)) void deleteField(field.id);
-            }}
-            onSortsChange={(sorts) => { if (activeTableId) setSorts(activeTableId, sorts); }}
-            onFiltersChange={(filters) => { if (activeTableId) setFilters(activeTableId, filters); }}
-            onToggleFieldVisibility={(fieldId) => void toggleFieldVisibility(fieldId)}
-          />
+          {renderToolbarStub()}
           <KanbanView
             fields={activeFields.filter((f) => !activeHiddenFieldIds.includes(f.id))}
             records={activeRecords}
             fieldOptionsByField={fieldOptionsByField}
             selectedRecordId={selectedRecordId}
-            groupByFieldId={kanbanGroupByFieldId}
+            groupByFieldId={activeKanbanGroupByFieldId}
             onSelectRecord={selectRecord}
-            onSetGroupByField={handleSetKanbanGroupBy}
+            onSetGroupByField={(fieldId) => {
+              if (activeTableId) void setKanbanGroupByField(activeTableId, fieldId);
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (viewType === "calendar") {
+      return (
+        <div className="calendar-view-wrap">
+          {renderToolbarStub()}
+          <CalendarView
+            fields={activeFields}
+            records={activeRecords}
+            fieldOptionsByField={fieldOptionsByField}
+            calendarDateFieldId={activeCalendarDateFieldId}
+            onSetCalendarDateField={(fieldId) => {
+              if (activeTableId) void setCalendarDateField(activeTableId, fieldId);
+            }}
+            onSelectRecord={selectRecord}
+            onExpandRecord={handleExpandRecord}
           />
         </div>
       );
@@ -278,7 +325,9 @@ export default function App() {
         filters={activeFilters}
         hiddenFieldIds={activeHiddenFieldIds}
         selectedRecordId={selectedRecordId}
+        groupByFieldId={activeGroupByFieldId}
         onSelectRecord={selectRecord}
+        onExpandRecord={handleExpandRecord}
         onCellChange={(recordId, columnKey, value) => {
           if (activeTableId) {
             void updateRecordCell(activeTableId, recordId, columnKey, value);
@@ -309,6 +358,15 @@ export default function App() {
           if (activeTableId) setFilters(activeTableId, filters);
         }}
         onToggleFieldVisibility={(fieldId) => void toggleFieldVisibility(fieldId)}
+        onSetGroupByField={(fieldId) => {
+          if (activeTableId) void setGroupByField(activeTableId, fieldId);
+        }}
+        onBulkDelete={(recordIds) => {
+          if (activeTableId && window.confirm(`Delete ${recordIds.length} record(s)?`)) {
+            void bulkDeleteRecords(activeTableId, recordIds);
+          }
+        }}
+        {...sharedToolbarProps}
       />
     );
   }
@@ -464,6 +522,37 @@ export default function App() {
           }
         }}
       />
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        tables={tables}
+        onClose={() => setCommandPaletteOpen(false)}
+        onSelectTable={(tableId) => void setActiveTable(tableId)}
+        onCreateTable={() => setCreateTableModalOpen(true)}
+      />
+
+      {expandedRecord && (
+        <ExpandedRecordModal
+          record={expandedRecord}
+          fields={activeFields}
+          fieldOptionsByField={fieldOptionsByField}
+          onFieldChange={(columnKey, value) => {
+            if (activeTableId && expandedRecordId) {
+              void updateRecordValues(activeTableId, expandedRecordId, { [columnKey]: value });
+            }
+          }}
+          onClose={handleCloseExpandedRecord}
+          onDelete={() => {
+            if (activeTableId && expandedRecordId && window.confirm("Delete this record?")) {
+              void deleteRecord(activeTableId, expandedRecordId);
+            }
+          }}
+          onOpenLink={openLink}
+          onCreateFieldOption={async (fieldId, label) => {
+            await createFieldOption(fieldId, label);
+          }}
+        />
+      )}
 
       {loading && !error ? (
         <div className="loading-overlay" style={{ flexDirection: 'column', alignItems: 'stretch', padding: '1rem', minWidth: '350px' }}>

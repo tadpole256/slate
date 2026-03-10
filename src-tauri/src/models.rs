@@ -46,6 +46,8 @@ pub struct AppField {
     pub is_primary_label: i64,
     pub created_at: String,
     pub updated_at: String,
+    /// JSON config for computed fields (lookup/rollup/formula). None for regular fields.
+    pub computed_config: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

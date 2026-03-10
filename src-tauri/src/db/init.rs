@@ -98,10 +98,18 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
 
         CREATE INDEX IF NOT EXISTS idx_record_attachments_record
           ON record_attachments(table_id, record_id);
+
+        CREATE TABLE IF NOT EXISTS app_field_computed (
+          field_id TEXT PRIMARY KEY,
+          computed_type TEXT NOT NULL,
+          config_json TEXT NOT NULL DEFAULT '{}',
+          FOREIGN KEY(field_id) REFERENCES app_fields(id) ON DELETE CASCADE
+        );
         "#,
     )?;
 
     migrate_field_type_constraint(conn)?;
+    migrate_field_type_constraint_v2(conn)?;
 
     seed_starter_tables(conn)?;
 
@@ -225,6 +233,53 @@ fn migrate_field_type_constraint(conn: &Connection) -> Result<()> {
         INSERT INTO app_fields_v2 SELECT * FROM app_fields;
         DROP TABLE app_fields;
         ALTER TABLE app_fields_v2 RENAME TO app_fields;
+
+        PRAGMA foreign_keys = ON;
+    "#)?;
+
+    Ok(())
+}
+
+/// Migrates the app_fields table to add computed field types: 'lookup', 'rollup', 'formula'.
+/// Uses the same table-recreation pattern as migrate_field_type_constraint.
+/// Idempotent: checks the existing schema before running.
+fn migrate_field_type_constraint_v2(conn: &Connection) -> Result<()> {
+    let schema_sql: String = conn.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='app_fields'",
+        [],
+        |row| row.get(0),
+    )?;
+
+    if schema_sql.contains("'lookup'") {
+        return Ok(()); // Already on the expanded schema
+    }
+
+    conn.execute_batch(r#"
+        PRAGMA foreign_keys = OFF;
+
+        CREATE TABLE IF NOT EXISTS app_fields_v3 (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          column_key TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          field_type TEXT NOT NULL CHECK (field_type IN (
+            'text', 'long_text', 'date', 'checkbox', 'link',
+            'number', 'currency', 'percent', 'email', 'url', 'phone',
+            'single_select', 'multi_select', 'rating', 'duration',
+            'lookup', 'rollup', 'formula'
+          )),
+          field_order INTEGER NOT NULL,
+          is_visible INTEGER NOT NULL DEFAULT 1,
+          is_primary_label INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(table_id) REFERENCES app_tables(id) ON DELETE CASCADE,
+          UNIQUE(table_id, column_key)
+        );
+
+        INSERT INTO app_fields_v3 SELECT * FROM app_fields;
+        DROP TABLE app_fields;
+        ALTER TABLE app_fields_v3 RENAME TO app_fields;
 
         PRAGMA foreign_keys = ON;
     "#)?;

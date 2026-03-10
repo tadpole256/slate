@@ -118,6 +118,7 @@ pub fn run() {
             commands::create_record,
             commands::update_record,
             commands::delete_record,
+            commands::delete_records,
             commands::list_record_attachments,
             commands::attach_file_to_record,
             commands::delete_attachment,
@@ -138,6 +139,8 @@ pub fn run() {
             commands::rename_view,
             commands::delete_view,
             commands::update_view_config,
+            commands::export_csv,
+            commands::import_csv,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate application");

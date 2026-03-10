@@ -4,6 +4,7 @@ interface TableCellProps {
   field: AppField;
   row: RecordRow;
   fieldOptions: FieldOption[];
+  isFocused?: boolean;
   onChange: (value: string | number | null) => void;
   onOpenLink: (value: string) => void;
 }
@@ -101,13 +102,14 @@ function MultiSelectCell({
   );
 }
 
-export function TableCell({ field, row, fieldOptions, onChange, onOpenLink }: TableCellProps) {
+export function TableCell({ field, row, fieldOptions, isFocused, onChange, onOpenLink }: TableCellProps) {
   const rawValue = row.values[field.column_key] ?? null;
   const stringValue = toStr(rawValue);
+  const focusClass = isFocused ? " cell-focused" : "";
 
   if (field.field_type === "checkbox") {
     return (
-      <td className="table-cell checkbox-cell">
+      <td className={`table-cell checkbox-cell${focusClass}`}>
         <input
           type="checkbox"
           checked={Number(rawValue) === 1}
@@ -311,7 +313,7 @@ export function TableCell({ field, row, fieldOptions, onChange, onOpenLink }: Ta
   }
 
   return (
-    <td className="table-cell">
+    <td className={`table-cell${focusClass}`}>
       <input
         className="grid-input"
         type="text"

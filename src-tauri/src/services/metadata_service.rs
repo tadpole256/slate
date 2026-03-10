@@ -54,11 +54,13 @@ pub fn get_table(conn: &Connection, table_id: &str) -> Result<AppTable> {
 pub fn list_fields(conn: &Connection, table_id: &str) -> Result<Vec<AppField>> {
     let mut stmt = conn.prepare(
         r#"
-        SELECT id, table_id, column_key, display_name, field_type,
-               field_order, is_visible, is_primary_label, created_at, updated_at
-        FROM app_fields
-        WHERE table_id = ?1
-        ORDER BY field_order ASC
+        SELECT af.id, af.table_id, af.column_key, af.display_name, af.field_type,
+               af.field_order, af.is_visible, af.is_primary_label, af.created_at, af.updated_at,
+               afc.config_json
+        FROM app_fields af
+        LEFT JOIN app_field_computed afc ON afc.field_id = af.id
+        WHERE af.table_id = ?1
+        ORDER BY af.field_order ASC
         "#,
     )?;
 
@@ -75,6 +77,7 @@ pub fn list_fields(conn: &Connection, table_id: &str) -> Result<Vec<AppField>> {
                 is_primary_label: row.get(7)?,
                 created_at: row.get(8)?,
                 updated_at: row.get(9)?,
+                computed_config: row.get(10)?,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -85,10 +88,12 @@ pub fn list_fields(conn: &Connection, table_id: &str) -> Result<Vec<AppField>> {
 pub fn get_field(conn: &Connection, field_id: &str) -> Result<AppField> {
     conn.query_row(
         r#"
-        SELECT id, table_id, column_key, display_name, field_type,
-               field_order, is_visible, is_primary_label, created_at, updated_at
-        FROM app_fields
-        WHERE id = ?1
+        SELECT af.id, af.table_id, af.column_key, af.display_name, af.field_type,
+               af.field_order, af.is_visible, af.is_primary_label, af.created_at, af.updated_at,
+               afc.config_json
+        FROM app_fields af
+        LEFT JOIN app_field_computed afc ON afc.field_id = af.id
+        WHERE af.id = ?1
         "#,
         [field_id],
         |row| {
@@ -103,6 +108,7 @@ pub fn get_field(conn: &Connection, field_id: &str) -> Result<AppField> {
                 is_primary_label: row.get(7)?,
                 created_at: row.get(8)?,
                 updated_at: row.get(9)?,
+                computed_config: row.get(10)?,
             })
         },
     )

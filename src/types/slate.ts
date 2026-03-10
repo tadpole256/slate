@@ -53,7 +53,7 @@ export interface RecordRow {
   values: Record<string, string | number | null>;
 }
 
-export type ViewType = "grid" | "gallery" | "kanban";
+export type ViewType = "grid" | "gallery" | "kanban" | "calendar";
 export type RowHeight = "compact" | "default" | "tall";
 
 export interface AppView {
@@ -70,6 +70,8 @@ export interface ViewConfig {
   hiddenFieldIds: string[];
   kanbanGroupByFieldId?: string;
   rowHeight?: RowHeight;
+  groupByFieldId?: string;
+  calendarDateFieldId?: string;
 }
 
 export interface TableSnapshot {

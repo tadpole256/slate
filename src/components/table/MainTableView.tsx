@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { AppField, AppTable, FieldOption, FilterInput, RecordRow, SortInput } from "../../types/slate";
+import type { AppField, AppTable, FieldOption, FilterInput, RecordRow, RowHeight, SortInput } from "../../types/slate";
 import { EmptyState } from "../common/EmptyState";
 import { FilterBar } from "./FilterBar";
 import { TableGrid } from "./TableGrid";
@@ -13,8 +13,11 @@ interface MainTableViewProps {
   sorts: SortInput[];
   filters: FilterInput[];
   hiddenFieldIds: string[];
+  rowHeight: RowHeight;
+  groupByFieldId: string | null;
   selectedRecordId: string | null;
   onSelectRecord: (recordId: string) => void;
+  onExpandRecord?: (recordId: string) => void;
   onCellChange: (recordId: string, columnKey: string, value: string | number | null) => void;
   onOpenLink: (value: string) => void;
   onAddColumn: () => void;
@@ -24,6 +27,11 @@ interface MainTableViewProps {
   onSortsChange: (sorts: SortInput[]) => void;
   onFiltersChange: (filters: FilterInput[]) => void;
   onToggleFieldVisibility: (fieldId: string) => void;
+  onSetRowHeight: (height: RowHeight) => void;
+  onSetGroupByField: (fieldId: string | null) => void;
+  onBulkDelete: (recordIds: string[]) => void;
+  onExportCsv: () => void;
+  onImportCsv: () => void;
 }
 
 export function MainTableView({
@@ -34,8 +42,11 @@ export function MainTableView({
   sorts,
   filters,
   hiddenFieldIds,
+  rowHeight,
+  groupByFieldId,
   selectedRecordId,
   onSelectRecord,
+  onExpandRecord,
   onCellChange,
   onOpenLink,
   onAddColumn,
@@ -45,9 +56,15 @@ export function MainTableView({
   onSortsChange,
   onFiltersChange,
   onToggleFieldVisibility,
+  onSetRowHeight,
+  onSetGroupByField,
+  onBulkDelete,
+  onExportCsv,
+  onImportCsv,
 }: MainTableViewProps) {
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [showHidePanel, setShowHidePanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const visibleFields = useMemo(
     () => fields.filter((f) => !hiddenFieldIds.includes(f.id)),
@@ -62,6 +79,13 @@ export function MainTableView({
       }, {}),
     [sorts]
   );
+
+  // Map groupByFieldId (field id) → column_key for TableGrid
+  const groupByColumnKey = useMemo(() => {
+    if (!groupByFieldId) return undefined;
+    const field = fields.find((f) => f.id === groupByFieldId);
+    return field?.column_key;
+  }, [groupByFieldId, fields]);
 
   function handleSortField(field: AppField) {
     const current = sortByField[field.id] ?? null;
@@ -92,10 +116,21 @@ export function MainTableView({
         filterCount={filters.length}
         showFilterBar={showFilterBar}
         showHidePanel={showHidePanel}
+        rowHeight={rowHeight}
+        groupByFieldId={groupByFieldId}
+        selectedCount={selectedIds.size}
         onAddColumn={onAddColumn}
         onToggleFilterBar={() => setShowFilterBar((v) => !v)}
         onToggleHidePanel={() => setShowHidePanel((v) => !v)}
         onToggleFieldVisibility={onToggleFieldVisibility}
+        onSetRowHeight={onSetRowHeight}
+        onSetGroupByField={onSetGroupByField}
+        onBulkDelete={() => {
+          onBulkDelete(Array.from(selectedIds));
+          setSelectedIds(new Set());
+        }}
+        onExportCsv={onExportCsv}
+        onImportCsv={onImportCsv}
       />
 
       {showFilterBar && (
@@ -112,12 +147,16 @@ export function MainTableView({
         fieldOptionsByField={fieldOptionsByField}
         sortByField={sortByField}
         selectedRecordId={selectedRecordId}
+        rowHeight={rowHeight}
+        groupByColumnKey={groupByColumnKey}
         onSelectRecord={onSelectRecord}
         onSortField={handleSortField}
         onCellChange={onCellChange}
         onOpenLink={onOpenLink}
         onRenameField={onRenameField}
         onDeleteField={onDeleteField}
+        onDoubleClickRecord={onExpandRecord}
+        onSelectionChange={setSelectedIds}
       />
 
       <button className="add-row-bar" onClick={onAddRow}>

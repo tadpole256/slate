@@ -65,9 +65,9 @@ fn backend_crud_search_and_links_work() {
     )
     .expect("drop physical table to simulate corruption");
 
-    let email_field = table_service::create_field(&conn, &people.id, "Email", "text")
+    let email_field = table_service::create_field(&conn, &people.id, "Email", "text", None)
         .expect("create email field");
-    let active_field = table_service::create_field(&conn, &people.id, "Active", "checkbox")
+    let active_field = table_service::create_field(&conn, &people.id, "Active", "checkbox", None)
         .expect("create active field");
 
     let fields = metadata_service::list_fields(&conn, &people.id).expect("list people fields");

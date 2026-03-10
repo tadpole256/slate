@@ -1,4 +1,5 @@
 pub mod attachment_service;
+pub mod csv_service;
 pub mod field_option_service;
 pub mod filter_service;
 pub mod link_service;

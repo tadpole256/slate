@@ -12,6 +12,11 @@ pub struct FieldSeed {
     pub is_primary_label: bool,
 }
 
+/// Returns true for field types whose value is computed at read time (no physical DB column).
+pub fn is_computed_field_type(field_type: &str) -> bool {
+    matches!(field_type, "lookup" | "rollup" | "formula")
+}
+
 fn normalized_name(name: &str) -> Result<String> {
     let normalized = name.split_whitespace().collect::<Vec<_>>().join(" ");
     if normalized.is_empty() {
@@ -62,6 +67,10 @@ pub fn repair_table_storage(conn: &Connection, table_id: &str) -> Result<()> {
     // One PRAGMA call for all fields, down from one per field
     let existing_columns = schema_service::get_existing_columns(conn, &table.storage_name)?;
     for field in fields {
+        // Computed fields have no physical column — skip them
+        if is_computed_field_type(&field.field_type) {
+            continue;
+        }
         if !existing_columns.contains(&field.column_key) {
             schema_service::add_column(conn, &table.storage_name, &field.column_key, &field.field_type)?;
         }
@@ -165,6 +174,7 @@ pub fn create_field(
     table_id: &str,
     display_name: &str,
     field_type: &str,
+    computed_config: Option<&str>,
 ) -> Result<AppField> {
     if !is_supported_field_type(field_type) {
         return Err(anyhow!("Unsupported field type"));
@@ -197,7 +207,16 @@ pub fn create_field(
         ),
     )?;
 
-    schema_service::add_column(conn, &table.storage_name, &column_key, field_type)?;
+    if is_computed_field_type(field_type) {
+        // Computed fields have no physical column; store their config instead
+        let config = computed_config.unwrap_or("{}");
+        conn.execute(
+            "INSERT INTO app_field_computed (field_id, computed_type, config_json) VALUES (?1, ?2, ?3)",
+            [&field_id, field_type, config],
+        )?;
+    } else {
+        schema_service::add_column(conn, &table.storage_name, &column_key, field_type)?;
+    }
 
     metadata_service::get_field(conn, &field_id)
 }
@@ -248,7 +267,10 @@ pub fn delete_field(conn: &Connection, field_id: &str) -> Result<()> {
         return Err(anyhow!("A table must have at least one column"));
     }
 
-    schema_service::drop_column(conn, &table.storage_name, &field.column_key)?;
+    // Computed fields have no physical column; CASCADE on app_fields FK handles app_field_computed cleanup
+    if !is_computed_field_type(&field.field_type) {
+        schema_service::drop_column(conn, &table.storage_name, &field.column_key)?;
+    }
     conn.execute("DELETE FROM app_fields WHERE id = ?1", [field_id])?;
 
     let next_primary: Option<String> = conn

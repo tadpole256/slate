@@ -95,6 +95,13 @@ export async function deleteRecord(tableId: string, recordId: string): Promise<v
   });
 }
 
+export async function deleteRecords(tableId: string, recordIds: string[]): Promise<void> {
+  return invoke<void>("delete_records", {
+    tableId,
+    recordIds
+  });
+}
+
 export async function listRecordAttachments(
   tableId: string,
   recordId: string
@@ -211,4 +218,12 @@ export async function deleteView(viewId: string): Promise<void> {
 
 export async function updateViewConfig(viewId: string, configJson: string): Promise<AppView> {
   return invoke<AppView>("update_view_config", { viewId, configJson });
+}
+
+export async function exportCsv(tableId: string): Promise<string | null> {
+  return invoke<string | null>("export_csv", { tableId });
+}
+
+export async function importCsv(tableId: string): Promise<number | null> {
+  return invoke<number | null>("import_csv", { tableId });
 }

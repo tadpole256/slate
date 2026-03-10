@@ -78,50 +78,49 @@
 
 ---
 
-## Phase 3: Named Views System
+## Phase 3: Named Views System ✅ COMPLETE
 > Multiple saved views per table, each with its own sorts/filters/field visibility. `app_views` table already exists in schema.
 
-### Backend
-- [ ] New: `view_service.rs` — CRUD on `app_views`; `config_json` stores `{sorts, filters, hidden_fields, row_height}`
-- [ ] `commands.rs` — New commands: `create_view`, `rename_view`, `delete_view`, `list_views`, `update_view_config`
-- [ ] `record_service.rs` / `get_table_snapshot` — Accept optional `view_id`; apply view's config
-- [ ] `commands.rs` — `get_table_snapshot` applies view config when `view_id` is passed
+### Backend ✅
+- [x] New: `view_service.rs` — CRUD on `app_views`; `config_json` stores `{hiddenFieldIds, kanbanGroupByFieldId, rowHeight}`
+- [x] `commands.rs` — New commands: `create_view`, `rename_view`, `delete_view`, `list_views`, `update_view_config`
+- [x] `get_table_snapshot` — Applies view's sorts/filters/hidden fields when rendering
 
-### View Types (in implementation order)
-1. **Grid** (already exists — migrate to named view model)
-   - [ ] Ensure existing grid becomes "Grid 1" default view on first load
-2. **Gallery**
-   - [ ] New: `GalleryView.tsx` — card grid; shows primary label + attachments thumbnail if present
-3. **Kanban**
-   - [ ] New: `KanbanView.tsx` — group by `single_select` field; drag cards between columns (updates record value)
-   - [ ] `commands.rs` — Add `move_record_to_group(record_id, field_id, new_value)` shorthand
-4. **Calendar**
+### View Types ✅ (Grid, Gallery, Kanban complete; Calendar pending)
+1. **Grid** ✅ — Migrated to named view model; "Grid 1" created as default view
+2. **Gallery** ✅
+   - [x] New: `GalleryView.tsx` — card grid showing primary field + visible fields as label/value rows
+3. **Kanban** ✅
+   - [x] New: `KanbanView.tsx` — group by any `single_select` field; drag cards between columns (updates record value in DB)
+   - [x] Group-by field selector in kanban toolbar; config persisted to `config_json`
+4. **Calendar** — pending (complex; deferred to Phase 6-era)
    - [ ] New: `CalendarView.tsx` — group by `date` field; month/week toggle
 
-### Frontend
-- [ ] View tabs bar below toolbar: "Grid 1 ▾", "+ Add view" button
-- [ ] View type picker modal with icons (Grid, Gallery, Kanban, Calendar)
-- [ ] `workspaceStore.ts` — Add `viewsByTable`, `activeViewId` state
+### Frontend ✅
+- [x] `ViewTabsBar.tsx` — View tabs below toolbar: click to switch, "+" to add, rename/delete context menu
+- [x] `AddViewModal.tsx` — View type picker with icons (Grid, Gallery, Kanban)
+- [x] `workspaceStore.ts` — `viewsByTable`, `activeViewIdByTable`, `hiddenFieldIdsByTable`, `kanbanGroupByFieldIdByTable` state
+- [x] `workspaceStore.ts` — `setActiveView`, `saveActiveViewConfig`, `setKanbanGroupByField` actions
 
 ---
 
-## Phase 4: Record UX Improvements
+## Phase 4: Record UX Improvements ✅ COMPLETE (core features)
 > Row-level features that complete the database UI feel.
 
-- [ ] **Full-screen record expand** — Double-click row opens `RecordDetailPanel` as a modal overlay
-- [ ] **Record notes/activity** — Internal `_notes` text field per record (or separate `record_comments` table)
-- [ ] **Bulk operations** — Checkbox column; shift+click range select; bulk delete + bulk field update toolbar
-- [ ] **Row height toggle** — Short / Medium / Tall; stored per view in `config_json`
-- [ ] **Keyboard navigation** — Arrow keys move between cells; Enter opens detail; Escape closes; Tab advances cell
+- [x] **Full-screen record expand** — Double-click row opens `ExpandedRecordModal.tsx` as a full-screen overlay; Escape or backdrop-click to close
+- [x] **Row height toggle** — Compact / Default / Tall modes in toolbar; stored per view in `config_json`; applied as CSS class on `<table>`
+- [x] **Keyboard navigation** — Arrow keys move between cells; Tab advances cell (wraps to next row); Enter expands record modal; Escape clears focus
+- [ ] **Bulk operations** — Checkbox multi-select, bulk delete + bulk field update toolbar (pending)
+- [ ] **Record notes/activity** — `_notes` field or `record_comments` table (pending)
 
 ---
 
-## Phase 5: Import / Export
+## Phase 5: Import / Export ✅ COMPLETE (CSV)
 > Get data in and out of Slate easily.
 
-- [ ] **CSV Import** — New command `import_csv(table_id, file_path)`: parse CSV, infer/map columns, insert records; frontend: "Import" button → file picker → column mapping step
-- [ ] **CSV Export** — New command `export_csv(table_id, view_id?)`: respects current view's filters/sorts; frontend: "Export" button → immediate download
-- [ ] **JSON Export** — Same pattern; includes field metadata
+- [x] **CSV Import** — `csv_service::import_csv` (Rust): native file picker via `rfd`, RFC-4180 parser, case-insensitive header→field matching by `display_name`; frontend "Import" button triggers immediately
+- [x] **CSV Export** — `csv_service::export_csv` (Rust): RFC-4180 escaping, native save dialog via `rfd`; frontend "Export" button triggers immediately
+- [ ] **JSON Export** — Same pattern; includes field metadata (pending)
 
 ---
 
@@ -143,7 +142,7 @@
 | Schema repair | `repair_all_table_storage` in `init_app` (NOT in `initialize_database`) |
 | Tauri commands | `src-tauri/src/commands.rs` |
 | State management | `src/store/workspaceStore.ts` (Zustand) |
-| Field options table | `app_field_options` (to be created in Phase 1) |
+| Field options table | `app_field_options` (created in Phase 1) |
 | View config | `app_views.config_json` JSON blob (table already exists) |
 | Tests | `src-tauri/src/tests.rs` — run with `~/.cargo/bin/cargo test` |
 
@@ -155,9 +154,9 @@
 
 | Phase | Status |
 |-------|--------|
-| 1 — Field Types | 🔲 Not started |
-| 2 — Sort / Filter / Column Controls | 🔲 Not started |
-| 3 — Named Views | 🔲 Not started |
-| 4 — Record UX | 🔲 Not started |
-| 5 — Import / Export | 🔲 Not started |
+| 1 — Field Types | ✅ Complete |
+| 2 — Sort / Filter / Column Controls | ✅ Complete |
+| 3 — Named Views | ✅ Complete (Calendar view pending) |
+| 4 — Record UX | ✅ Complete (bulk ops pending) |
+| 5 — Import / Export | ✅ Complete (JSON export pending) |
 | 6 — Formula / Rollup | 🔲 Not started |
