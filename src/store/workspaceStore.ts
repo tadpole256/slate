@@ -103,7 +103,7 @@ interface WorkspaceState {
   createTable: (displayName: string) => Promise<void>;
   renameTable: (tableId: string, displayName: string) => Promise<void>;
   deleteTable: (tableId: string) => Promise<void>;
-  createField: (tableId: string, displayName: string, fieldType: FieldType) => Promise<void>;
+  createField: (tableId: string, displayName: string, fieldType: FieldType, computedConfig?: string) => Promise<void>;
   renameField: (fieldId: string, displayName: string) => Promise<void>;
   deleteField: (fieldId: string) => Promise<void>;
   createRecord: (tableId: string) => Promise<void>;
@@ -655,14 +655,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
 
-  createField: async (tableId, displayName, fieldType) => {
+  createField: async (tableId, displayName, fieldType, computedConfig) => {
     const trimmed = normalizeName(displayName);
     if (!trimmed) {
       return;
     }
 
     try {
-      await createField({ table_id: tableId, display_name: trimmed, field_type: fieldType });
+      await createField({
+        table_id: tableId,
+        display_name: trimmed,
+        field_type: fieldType,
+        computed_config: computedConfig,
+      });
       set({ addColumnModalOpen: false });
       await get().refreshActiveTable();
     } catch (error) {

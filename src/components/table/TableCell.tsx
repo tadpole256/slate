@@ -1,3 +1,4 @@
+import { isComputedFieldType } from "../../types/slate";
 import type { AppField, FieldOption, RecordRow } from "../../types/slate";
 
 interface TableCellProps {
@@ -106,6 +107,15 @@ export function TableCell({ field, row, fieldOptions, isFocused, onChange, onOpe
   const rawValue = row.values[field.column_key] ?? null;
   const stringValue = toStr(rawValue);
   const focusClass = isFocused ? " cell-focused" : "";
+
+  // Computed fields are always read-only
+  if (isComputedFieldType(field.field_type)) {
+    return (
+      <td className={`table-cell computed-cell${focusClass}`}>
+        <span className="computed-cell-value">{stringValue}</span>
+      </td>
+    );
+  }
 
   if (field.field_type === "checkbox") {
     return (

@@ -316,9 +316,10 @@ pub fn list_records(
     let mut where_clauses: Vec<String> = Vec::new();
 
     // Only physical (non-computed) fields are searchable / filterable / sortable
-    let physical_fields: Vec<&AppField> = fields
+    let physical_fields: Vec<AppField> = fields
         .iter()
         .filter(|f| !table_service::is_computed_field_type(&f.field_type))
+        .cloned()
         .collect();
 
     if let Some(text) = query {

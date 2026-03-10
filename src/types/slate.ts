@@ -13,7 +13,13 @@ export type FieldType =
   | "single_select"
   | "multi_select"
   | "rating"
-  | "duration";
+  | "duration"
+  | "lookup"
+  | "rollup"
+  | "formula";
+
+export const COMPUTED_FIELD_TYPES = new Set<FieldType>(["lookup", "rollup", "formula"]);
+export const isComputedFieldType = (ft: FieldType): boolean => COMPUTED_FIELD_TYPES.has(ft);
 
 export interface AppTable {
   id: string;
@@ -35,6 +41,7 @@ export interface AppField {
   is_primary_label: number;
   created_at: string;
   updated_at: string;
+  computed_config?: string;
 }
 
 export interface FieldOption {
@@ -115,6 +122,7 @@ export interface FieldMutationInput {
   table_id: string;
   display_name: string;
   field_type: FieldType;
+  computed_config?: string;
 }
 
 export interface RecordMutationInput {

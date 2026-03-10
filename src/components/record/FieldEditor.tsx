@@ -1,3 +1,4 @@
+import { isComputedFieldType } from "../../types/slate";
 import type { AppField, FieldOption } from "../../types/slate";
 import { SingleSelectEditor, MultiSelectEditor } from "./SelectFieldEditor";
 
@@ -34,6 +35,16 @@ function RatingEditor({ value, onChange }: { value: string | number | null; onCh
 
 export function FieldEditor({ field, value, fieldOptions, onChange, onOpenLink, onCreateFieldOption }: FieldEditorProps) {
   const stringValue = toStr(value);
+
+  // Computed fields are read-only; render a simple display instead of an input
+  if (isComputedFieldType(field.field_type)) {
+    return (
+      <div className="field-editor field-editor--computed">
+        <span>{field.display_name}</span>
+        <div className="computed-field-value">{stringValue || "—"}</div>
+      </div>
+    );
+  }
 
   return (
     <label className="field-editor">

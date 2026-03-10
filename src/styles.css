@@ -1822,6 +1822,87 @@ th.checkbox-col {
   font-size: 0.86rem;
 }
 
+/* ── Computed fields ──────────────────────────────────────────── */
+
+/* Read-only cell in the grid */
+.computed-cell {
+  background: transparent;
+  cursor: default;
+}
+
+.computed-cell-value {
+  display: block;
+  padding: 0 0.4rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Read-only value in the expand modal */
+.computed-field-value {
+  padding: 0.4rem 0.5rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  min-height: 2rem;
+  font-size: 0.9rem;
+}
+
+/* Container for computed-field config in AddColumnModal */
+.computed-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary, #f8f8f8);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  margin-top: 0.25rem;
+}
+
+.formula-textarea {
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+/* Field insert chips for formula editor */
+.field-insert-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.field-insert-chip {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 12px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.field-insert-chip:hover {
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  border-color: var(--accent, #3b82f6);
+}
+
 /* ─────────────────────────────────────────────────────────────── */
 
 @media (max-width: 1200px) {

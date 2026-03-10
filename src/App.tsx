@@ -506,11 +506,14 @@ export default function App() {
       <AddColumnModal
         open={addColumnModalOpen}
         onClose={() => setAddColumnModalOpen(false)}
-        onSubmit={(name, type) => {
+        onSubmit={(name, type, computedConfig) => {
           if (activeTableId) {
-            void createField(activeTableId, name, type);
+            void createField(activeTableId, name, type, computedConfig);
           }
         }}
+        tables={tables}
+        fieldsByTable={fieldsByTable}
+        currentTableId={activeTableId ?? undefined}
       />
 
       <AddViewModal

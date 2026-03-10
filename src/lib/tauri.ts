@@ -58,7 +58,8 @@ export async function createField(input: FieldMutationInput): Promise<AppField> 
   return invoke<AppField>("create_field", {
     tableId: input.table_id,
     displayName: input.display_name,
-    fieldType: input.field_type
+    fieldType: input.field_type,
+    computedConfig: input.computed_config ?? null,
   });
 }
 
