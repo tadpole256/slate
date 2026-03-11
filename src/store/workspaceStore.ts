@@ -107,6 +107,7 @@ interface WorkspaceState {
   renameField: (fieldId: string, displayName: string) => Promise<void>;
   deleteField: (fieldId: string) => Promise<void>;
   createRecord: (tableId: string) => Promise<void>;
+  submitFormRecord: (tableId: string, values: Record<string, string | number | null>) => Promise<void>;
   updateRecordCell: (
     tableId: string,
     recordId: string,
@@ -714,6 +715,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       await get().refreshActiveTable();
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to delete column") });
+    }
+  },
+
+  submitFormRecord: async (tableId, values) => {
+    try {
+      const record = await createRecord({ table_id: tableId, values });
+      set((state) => ({
+        recordsByTable: {
+          ...state.recordsByTable,
+          [tableId]: [record, ...(state.recordsByTable[tableId] ?? [])],
+        },
+      }));
+    } catch (error) {
+      const msg = toErrorMessage(error, "Failed to submit record");
+      set({ error: msg });
+      throw new Error(msg);
     }
   },
 

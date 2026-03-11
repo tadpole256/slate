@@ -10,6 +10,7 @@ import { RecordDetailPanel } from "./components/record/RecordDetailPanel";
 import { MainTableView } from "./components/table/MainTableView";
 import { AddViewModal } from "./components/views/AddViewModal";
 import { CalendarView } from "./components/views/CalendarView";
+import { FormView } from "./components/views/FormView";
 import { GalleryView } from "./components/views/GalleryView";
 import { KanbanView } from "./components/views/KanbanView";
 import { ViewTabsBar } from "./components/views/ViewTabsBar";
@@ -83,6 +84,7 @@ export default function App() {
     setGroupByField,
     setCalendarDateField,
     bulkDeleteRecords,
+    submitFormRecord,
     exportCsvTable,
     importCsvToTable,
   } = useWorkspaceStore();
@@ -292,6 +294,24 @@ export default function App() {
             }}
           />
         </div>
+      );
+    }
+
+    if (viewType === "form") {
+      return (
+        <FormView
+          key={activeTableId}
+          table={activeTable}
+          fields={activeFields}
+          fieldOptionsByField={fieldOptionsByField}
+          onSubmit={async (values) => {
+            await submitFormRecord(activeTableId!, values);
+          }}
+          onCreateFieldOption={async (fieldId, label) => {
+            await createFieldOption(fieldId, label);
+          }}
+          onOpenLink={openLink}
+        />
       );
     }
 

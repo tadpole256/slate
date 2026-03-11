@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarDays, Columns, GalleryHorizontal, LayoutGrid } from "lucide-react";
+import { CalendarDays, ClipboardList, Columns, GalleryHorizontal, LayoutGrid } from "lucide-react";
 import type { ViewType } from "../../types/slate";
 
 const VIEW_TYPES: Array<{ type: ViewType; label: string; desc: string; icon: React.ReactNode }> = [
@@ -26,6 +26,12 @@ const VIEW_TYPES: Array<{ type: ViewType; label: string; desc: string; icon: Rea
     label: "Calendar",
     desc: "Records on a month grid by date",
     icon: <CalendarDays size={20} />,
+  },
+  {
+    type: "form",
+    label: "Form",
+    desc: "Distraction-free entry form for new records",
+    icon: <ClipboardList size={20} />,
   },
 ];
 

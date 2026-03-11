@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutGrid, Columns, GalleryHorizontal, Plus, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, ClipboardList, Columns, GalleryHorizontal, LayoutGrid, Pencil, Plus, Trash2 } from "lucide-react";
 import type { AppView, ViewType } from "../../types/slate";
 
 interface ViewTabsBarProps {
@@ -14,6 +14,8 @@ interface ViewTabsBarProps {
 function ViewIcon({ type }: { type: ViewType }) {
   if (type === "gallery") return <GalleryHorizontal size={13} />;
   if (type === "kanban") return <Columns size={13} />;
+  if (type === "calendar") return <CalendarDays size={13} />;
+  if (type === "form") return <ClipboardList size={13} />;
   return <LayoutGrid size={13} />;
 }
 

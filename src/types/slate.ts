@@ -60,7 +60,7 @@ export interface RecordRow {
   values: Record<string, string | number | null>;
 }
 
-export type ViewType = "grid" | "gallery" | "kanban" | "calendar";
+export type ViewType = "grid" | "gallery" | "kanban" | "calendar" | "form";
 export type RowHeight = "compact" | "default" | "tall";
 
 export interface AppView {
