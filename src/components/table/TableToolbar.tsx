@@ -20,6 +20,7 @@ interface TableToolbarProps {
   onSetGroupByField: (fieldId: string | null) => void;
   onBulkDelete: () => void;
   onExportCsv: () => void;
+  onExportJson: () => void;
   onImportCsv: () => void;
 }
 
@@ -42,6 +43,7 @@ export function TableToolbar({
   onSetGroupByField,
   onBulkDelete,
   onExportCsv,
+  onExportJson,
   onImportCsv,
 }: TableToolbarProps) {
   return (
@@ -134,7 +136,17 @@ export function TableToolbar({
             title="Export CSV"
           >
             <Download size={14} />
-            Export
+            CSV
+          </button>
+
+          <button
+            className="action-button secondary"
+            onClick={onExportJson}
+            disabled={!table}
+            title="Export JSON"
+          >
+            <Download size={14} />
+            JSON
           </button>
 
           <button className="action-button secondary" onClick={onAddColumn} disabled={!table}>

@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
 import { SearchInput } from "../common/SearchInput";
 
 interface TopBarProps {
@@ -6,6 +6,7 @@ interface TopBarProps {
   onSearchChange: (value: string) => void;
   onAddRecord: () => void;
   onAddTable: () => void;
+  onOpenSettings: () => void;
   disableAddRecord?: boolean;
 }
 
@@ -14,6 +15,7 @@ export function TopBar({
   onSearchChange,
   onAddRecord,
   onAddTable,
+  onOpenSettings,
   disableAddRecord
 }: TopBarProps) {
   return (
@@ -36,6 +38,9 @@ export function TopBar({
         <button className="action-button secondary" onClick={onAddTable}>
           <Plus size={16} />
           Table
+        </button>
+        <button className="icon-button" onClick={onOpenSettings} title="Settings">
+          <Settings size={16} />
         </button>
       </div>
     </div>

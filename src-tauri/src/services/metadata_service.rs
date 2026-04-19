@@ -6,7 +6,8 @@ use crate::models::{AppField, AppTable};
 pub fn list_tables(conn: &Connection) -> Result<Vec<AppTable>> {
     let mut stmt = conn.prepare(
         r#"
-        SELECT id, display_name, storage_name, primary_field_id, created_at, updated_at
+        SELECT id, display_name, storage_name, primary_field_id, created_at, updated_at,
+               COALESCE(is_external, 0), folder_id
         FROM app_tables
         ORDER BY lower(display_name) ASC
         "#,
@@ -21,6 +22,8 @@ pub fn list_tables(conn: &Connection) -> Result<Vec<AppTable>> {
                 primary_field_id: row.get(3)?,
                 created_at: row.get(4)?,
                 updated_at: row.get(5)?,
+                is_external: row.get(6)?,
+                folder_id: row.get(7)?,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -31,7 +34,8 @@ pub fn list_tables(conn: &Connection) -> Result<Vec<AppTable>> {
 pub fn get_table(conn: &Connection, table_id: &str) -> Result<AppTable> {
     conn.query_row(
         r#"
-        SELECT id, display_name, storage_name, primary_field_id, created_at, updated_at
+        SELECT id, display_name, storage_name, primary_field_id, created_at, updated_at,
+               COALESCE(is_external, 0), folder_id
         FROM app_tables
         WHERE id = ?1
         "#,
@@ -44,6 +48,8 @@ pub fn get_table(conn: &Connection, table_id: &str) -> Result<AppTable> {
                 primary_field_id: row.get(3)?,
                 created_at: row.get(4)?,
                 updated_at: row.get(5)?,
+                is_external: row.get(6)?,
+                folder_id: row.get(7)?,
             })
         },
     )

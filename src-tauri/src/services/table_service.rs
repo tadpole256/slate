@@ -50,6 +50,11 @@ pub fn create_table(conn: &Connection, display_name: &str) -> Result<AppTable> {
 pub fn repair_all_table_storage(conn: &Connection) -> Result<()> {
     let tables = metadata_service::list_tables(conn)?;
     for table in tables {
+        // External tables live in an ATTACH'd database — they have no Slate-managed
+        // physical columns to repair, so skip them entirely.
+        if table.is_external != 0 {
+            continue;
+        }
         repair_table_storage(conn, &table.id)?;
     }
     Ok(())

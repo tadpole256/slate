@@ -1,1 +1,1 @@
-{"main-capability":{"identifier":"main-capability","description":"Main app capability","local":true,"windows":["main"],"permissions":["core:default"]}}
+{"main-capability":{"identifier":"main-capability","description":"Main app capability","local":true,"windows":["main","record-*"],"permissions":["core:default","core:window:allow-create","core:window:allow-set-title"]}}

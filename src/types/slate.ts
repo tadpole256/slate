@@ -16,7 +16,8 @@ export type FieldType =
   | "duration"
   | "lookup"
   | "rollup"
-  | "formula";
+  | "formula"
+  | "tags";
 
 export const COMPUTED_FIELD_TYPES = new Set<FieldType>(["lookup", "rollup", "formula"]);
 export const isComputedFieldType = (ft: FieldType): boolean => COMPUTED_FIELD_TYPES.has(ft);
@@ -28,6 +29,32 @@ export interface AppTable {
   primary_field_id: string | null;
   created_at: string;
   updated_at: string;
+  /** 1 if this table is backed by an external ATTACH'd SQLite DB, 0 otherwise. */
+  is_external: number;
+  /** Folder this table belongs to, or undefined if ungrouped. */
+  folder_id?: string | null;
+}
+
+export interface AppFolder {
+  id: string;
+  name: string;
+  folder_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExternalConnection {
+  alias: string;
+  file_path: string;
+  table_ids: string[];
+  table_names: string[];
+}
+
+export interface RecordDetailPayload {
+  table: AppTable;
+  fields: AppField[];
+  field_options: Record<string, FieldOption[]>;
+  record: RecordRow;
 }
 
 export interface AppField {
@@ -148,6 +175,20 @@ export interface RecordAttachment {
 export interface RecordOption {
   record_id: string;
   label: string;
+}
+
+export interface BackupFile {
+  name: string;
+  path: string;
+  size_bytes: number;
+}
+
+export interface RecordNote {
+  id: string;
+  table_id: string;
+  record_id: string;
+  body: string;
+  created_at: string;
 }
 
 export interface RecordLink {

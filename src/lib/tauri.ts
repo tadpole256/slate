@@ -1,14 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppField,
+  AppFolder,
   AppTable,
   AppView,
+  ExternalConnection,
   FieldMutationInput,
   FieldOption,
   FilterInput,
   InitResponse,
   RecordAttachment,
+  RecordDetailPayload,
   RecordLink,
+  RecordNote,
   RecordOption,
   RecordMutationInput,
   RecordRow,
@@ -227,4 +231,107 @@ export async function exportCsv(tableId: string): Promise<string | null> {
 
 export async function importCsv(tableId: string): Promise<number | null> {
   return invoke<number | null>("import_csv", { tableId });
+}
+
+export async function exportJson(tableId: string): Promise<string | null> {
+  return invoke<string | null>("export_json", { tableId });
+}
+
+export async function pickBackupFolder(): Promise<string | null> {
+  return invoke<string | null>("pick_backup_folder");
+}
+
+export async function createBackup(destDir: string): Promise<string> {
+  return invoke<string>("create_backup", { destDir });
+}
+
+export async function listBackups(destDir: string): Promise<import("../types/slate").BackupFile[]> {
+  return invoke("list_backups", { destDir });
+}
+
+export async function getAppMeta(key: string): Promise<string | null> {
+  return invoke<string | null>("get_app_meta", { key });
+}
+
+export async function setAppMeta(key: string, value: string): Promise<void> {
+  return invoke<void>("set_app_meta", { key, value });
+}
+
+export async function pickExternalDbFile(): Promise<string | null> {
+  return invoke<string | null>("pick_external_db_file");
+}
+
+export async function connectExternalDb(path: string): Promise<import("../types/slate").AppTable[]> {
+  return invoke<import("../types/slate").AppTable[]>("connect_external_db", { path });
+}
+
+export async function disconnectExternalDb(tableId: string): Promise<void> {
+  return invoke<void>("disconnect_external_db", { tableId });
+}
+
+export async function listExternalConnections(): Promise<ExternalConnection[]> {
+  return invoke<ExternalConnection[]>("list_external_connections");
+}
+
+export async function getDbPath(): Promise<string> {
+  return invoke<string>("get_db_path");
+}
+
+// ── Folder commands ──────────────────────────────────────────────────────────
+
+export async function listFolders(): Promise<AppFolder[]> {
+  return invoke<AppFolder[]>("list_folders");
+}
+
+export async function createFolder(name: string): Promise<AppFolder> {
+  return invoke<AppFolder>("create_folder", { name });
+}
+
+export async function renameFolder(id: string, name: string): Promise<AppFolder> {
+  return invoke<AppFolder>("rename_folder", { id, name });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  return invoke<void>("delete_folder", { id });
+}
+
+export async function moveTableToFolder(tableId: string, folderId: string | null): Promise<void> {
+  return invoke<void>("move_table_to_folder", { tableId, folderId });
+}
+
+export async function reorderFolders(folderIds: string[]): Promise<void> {
+  return invoke<void>("reorder_folders", { folderIds });
+}
+
+// ── Record detail window ─────────────────────────────────────────────────────
+
+export async function getRecordDetail(tableId: string, recordId: string): Promise<RecordDetailPayload> {
+  return invoke<RecordDetailPayload>("get_record_detail", { tableId, recordId });
+}
+
+export async function openRecordWindow(tableId: string, recordId: string): Promise<void> {
+  const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+  const label = `record-${(tableId + recordId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 30)}`;
+  new WebviewWindow(label, {
+    url: `/?mode=record&table=${encodeURIComponent(tableId)}&record=${encodeURIComponent(recordId)}`,
+    title: "Record Detail",
+    width: 720,
+    height: 820,
+    minWidth: 480,
+    minHeight: 500,
+    resizable: true,
+    center: true,
+  });
+}
+
+export async function listRecordNotes(tableId: string, recordId: string): Promise<RecordNote[]> {
+  return invoke<RecordNote[]>("list_record_notes", { tableId, recordId });
+}
+
+export async function createRecordNote(tableId: string, recordId: string, body: string): Promise<RecordNote> {
+  return invoke<RecordNote>("create_record_note", { tableId, recordId, body });
+}
+
+export async function deleteRecordNote(noteId: string): Promise<void> {
+  return invoke<void>("delete_record_note", { noteId });
 }

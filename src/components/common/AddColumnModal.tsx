@@ -40,6 +40,7 @@ const FIELD_TYPE_GROUPS: Array<{ group: string; types: FieldTypeOption[] }> = [
     types: [
       { label: "Single select", value: "single_select", desc: "One option from a list" },
       { label: "Multi select", value: "multi_select", desc: "Multiple options from a list" },
+      { label: "Tags", value: "tags", desc: "Free-form labels as pills" },
     ],
   },
   {

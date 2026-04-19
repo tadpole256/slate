@@ -8,12 +8,14 @@ import { TopBar } from "./components/layout/TopBar";
 import { ExpandedRecordModal } from "./components/record/ExpandedRecordModal";
 import { RecordDetailPanel } from "./components/record/RecordDetailPanel";
 import { MainTableView } from "./components/table/MainTableView";
+import { SettingsModal } from "./components/common/SettingsModal";
 import { AddViewModal } from "./components/views/AddViewModal";
 import { CalendarView } from "./components/views/CalendarView";
 import { FormView } from "./components/views/FormView";
 import { GalleryView } from "./components/views/GalleryView";
 import { KanbanView } from "./components/views/KanbanView";
 import { ViewTabsBar } from "./components/views/ViewTabsBar";
+import { openRecordWindow } from "./lib/tauri";
 import { useWorkspaceStore } from "./store/workspaceStore";
 import type { RowHeight, ViewType } from "./types/slate";
 
@@ -86,10 +88,33 @@ export default function App() {
     bulkDeleteRecords,
     submitFormRecord,
     exportCsvTable,
+    exportJsonTable,
     importCsvToTable,
+    backupDir,
+    lastBackupAt,
+    backupFiles,
+    backupsLoading,
+    pickBackupFolder,
+    runBackup,
+    loadBackups,
+    connectExternalDb,
+    disconnectExternalDb,
+    clearError,
+    reorderFields,
+    theme,
+    setTheme,
+    folders,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveTableToFolder,
+    externalConnections,
+    dbPath,
+    loadExternalConnections,
   } = useWorkspaceStore();
 
   const [addViewModalOpen, setAddViewModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
@@ -184,6 +209,9 @@ export default function App() {
     onExportCsv: () => {
       if (activeTableId) void exportCsvTable(activeTableId);
     },
+    onExportJson: () => {
+      if (activeTableId) void exportJsonTable(activeTableId);
+    },
     onImportCsv: () => {
       if (activeTableId) void importCsvToTable(activeTableId);
     },
@@ -222,6 +250,7 @@ export default function App() {
         onToggleFieldVisibility={(fieldId) => void toggleFieldVisibility(fieldId)}
         onSetGroupByField={() => {}}
         onBulkDelete={() => {}}
+        onReorderFields={() => {}}
         {...sharedToolbarProps}
       />
     );
@@ -255,7 +284,9 @@ export default function App() {
           onSetGroupByField={() => {}}
           onBulkDelete={() => {}}
           onExportCsv={() => {}}
+          onExportJson={() => {}}
           onImportCsv={() => {}}
+          onReorderFields={() => {}}
         />
       );
     }
@@ -348,6 +379,9 @@ export default function App() {
         groupByFieldId={activeGroupByFieldId}
         onSelectRecord={selectRecord}
         onExpandRecord={handleExpandRecord}
+        onOpenRecordWindow={(recordId) => {
+          if (activeTableId) void openRecordWindow(activeTableId, recordId);
+        }}
         onCellChange={(recordId, columnKey, value) => {
           if (activeTableId) {
             void updateRecordCell(activeTableId, recordId, columnKey, value);
@@ -386,6 +420,9 @@ export default function App() {
             void bulkDeleteRecords(activeTableId, recordIds);
           }
         }}
+        onReorderFields={(fieldIds) => {
+          if (activeTableId) void reorderFields(activeTableId, fieldIds);
+        }}
         {...sharedToolbarProps}
       />
     );
@@ -404,6 +441,11 @@ export default function App() {
               }
             }}
             onAddTable={() => setCreateTableModalOpen(true)}
+            onOpenSettings={() => {
+              void loadBackups();
+              void loadExternalConnections();
+              setSettingsOpen(true);
+            }}
             disableAddRecord={!activeTableId}
           />
         }
@@ -411,6 +453,7 @@ export default function App() {
           <Sidebar
             tables={tables}
             activeTableId={activeTableId}
+            folders={folders}
             onSelectTable={(tableId) => {
               void setActiveTable(tableId);
             }}
@@ -426,6 +469,24 @@ export default function App() {
                 void deleteTable(tableId);
               }
             }}
+            onConnectDb={() => void connectExternalDb()}
+            onDisconnectTable={(tableId) => {
+              void disconnectExternalDb(tableId);
+            }}
+            onCreateFolder={() => {
+              const name = window.prompt("Folder name");
+              if (name) void createFolder(name);
+            }}
+            onRenameFolder={(id, currentName) => {
+              const next = window.prompt("Rename folder", currentName);
+              if (next) void renameFolder(id, next);
+            }}
+            onDeleteFolder={(id) => {
+              if (window.confirm("Remove this folder? Tables will be ungrouped.")) {
+                void deleteFolder(id);
+              }
+            }}
+            onMoveTableToFolder={(tableId, folderId) => void moveTableToFolder(tableId, folderId)}
           />
         }
         main={
@@ -515,6 +576,23 @@ export default function App() {
         }
       />
 
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        theme={theme}
+        onSetTheme={setTheme}
+        dbPath={dbPath}
+        externalConnections={externalConnections}
+        onConnectDb={() => { void connectExternalDb(); setSettingsOpen(false); }}
+        onDisconnectExternal={(tableId) => void disconnectExternalDb(tableId)}
+        backupDir={backupDir}
+        lastBackupAt={lastBackupAt}
+        backupFiles={backupFiles}
+        backupsLoading={backupsLoading}
+        onPickFolder={pickBackupFolder}
+        onRunBackup={runBackup}
+      />
+
       <CreateTableModal
         open={createTableModalOpen}
         onClose={() => setCreateTableModalOpen(false)}
@@ -557,6 +635,7 @@ export default function App() {
       {expandedRecord && (
         <ExpandedRecordModal
           record={expandedRecord}
+          tableId={activeTableId ?? ""}
           fields={activeFields}
           fieldOptionsByField={fieldOptionsByField}
           onFieldChange={(columnKey, value) => {
@@ -588,7 +667,12 @@ export default function App() {
           </div>
         </div>
       ) : null}
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? (
+        <div className="error-banner" role="alert">
+          <span className="error-banner-text">{error}</span>
+          <button className="error-banner-dismiss" onClick={clearError} aria-label="Dismiss error">✕</button>
+        </div>
+      ) : null}
     </>
   );
 }

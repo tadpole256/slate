@@ -23,6 +23,8 @@ export function readableFieldType(type: string): string {
       return "Date";
     case "link":
       return "Link";
+    case "tags":
+      return "Tags";
     default:
       return "Text";
   }

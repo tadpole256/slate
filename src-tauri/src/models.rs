@@ -32,6 +32,37 @@ pub struct AppTable {
     pub primary_field_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    /// 1 if this table maps to an external ATTACH'd SQLite DB, 0 otherwise.
+    pub is_external: i64,
+    /// Optional folder this table belongs to.
+    pub folder_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppFolder {
+    pub id: String,
+    pub name: String,
+    pub folder_order: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Summary of one externally ATTACH'd SQLite database shown in Settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExternalConnection {
+    pub alias: String,
+    pub file_path: String,
+    pub table_ids: Vec<String>,
+    pub table_names: Vec<String>,
+}
+
+/// Payload returned by `get_record_detail` for the record detail window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordDetailPayload {
+    pub table: AppTable,
+    pub fields: Vec<AppField>,
+    pub field_options: std::collections::HashMap<String, Vec<FieldOption>>,
+    pub record: RecordRow,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +140,22 @@ pub struct RecordAttachment {
 pub struct RecordOption {
     pub record_id: String,
     pub label: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordNote {
+    pub id: String,
+    pub table_id: String,
+    pub record_id: String,
+    pub body: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupFile {
+    pub name: String,
+    pub path: String,
+    pub size_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

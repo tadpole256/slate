@@ -1,5 +1,6 @@
 import { isComputedFieldType } from "../../types/slate";
 import type { AppField, FieldOption, RecordRow } from "../../types/slate";
+import { TagsCell } from "./TagsCell";
 
 interface TableCellProps {
   field: AppField;
@@ -319,6 +320,17 @@ export function TableCell({ field, row, fieldOptions, isFocused, onChange, onOpe
         value={rawValue}
         options={fieldOptions}
       />
+    );
+  }
+
+  if (field.field_type === "tags") {
+    return (
+      <td className={`table-cell${focusClass}`} onClick={(e) => e.stopPropagation()}>
+        <TagsCell
+          value={stringValue || null}
+          onChange={(v) => onChange(v)}
+        />
+      </td>
     );
   }
 

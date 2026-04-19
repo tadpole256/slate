@@ -1,6 +1,7 @@
 import { isComputedFieldType } from "../../types/slate";
 import type { AppField, FieldOption } from "../../types/slate";
 import { SingleSelectEditor, MultiSelectEditor } from "./SelectFieldEditor";
+import { TagsCell } from "../table/TagsCell";
 
 interface FieldEditorProps {
   field: AppField;
@@ -191,6 +192,13 @@ export function FieldEditor({ field, value, fieldOptions, onChange, onOpenLink, 
           options={fieldOptions}
           onChange={onChange}
           onCreateOption={(label) => onCreateFieldOption(field.id, label)}
+        />
+      ) : null}
+
+      {field.field_type === "tags" ? (
+        <TagsCell
+          value={value !== null && value !== undefined ? String(value) : null}
+          onChange={onChange}
         />
       ) : null}
     </label>

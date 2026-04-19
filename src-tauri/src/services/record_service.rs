@@ -9,6 +9,21 @@ use crate::db::{quote_ident, now_iso};
 use crate::models::{AppField, FilterInput, RecordRow, SortInput};
 use crate::services::{filter_service, metadata_service, search_service, table_service};
 
+/// Format a `storage_name` as a valid SQL table reference.
+/// - Native tables:   `"data_tbl_xxx"`
+/// - External tables: `"alias"."tablename"` (storage_name contains a dot)
+fn format_table_ref(storage_name: &str) -> String {
+    if let Some(dot) = storage_name.find('.') {
+        format!(
+            "{}.{}",
+            quote_ident(&storage_name[..dot]),
+            quote_ident(&storage_name[dot + 1..])
+        )
+    } else {
+        quote_ident(storage_name)
+    }
+}
+
 // ── SQL type helpers ──────────────────────────────────────────────────────────
 
 fn sql_value_to_json(v: rusqlite::types::Value) -> Value {
@@ -61,33 +76,40 @@ fn json_to_sql(value: Option<&Value>, field_type: &str) -> SqlValue {
 
 // ── Row mapper ────────────────────────────────────────────────────────────────
 
-fn row_to_record(row: &Row<'_>, fields: &[AppField]) -> rusqlite::Result<RecordRow> {
+fn row_to_record(row: &Row<'_>, fields: &[AppField], is_external: bool) -> rusqlite::Result<RecordRow> {
     let mut values: HashMap<String, Value> = HashMap::new();
 
     for (idx, field) in fields.iter().enumerate() {
         let col_index = idx + 3;
-        let json_value = match field.field_type.as_str() {
-            "checkbox" | "rating" | "duration" => {
-                let v: Option<i64> = row.get(col_index)?;
-                v.map(|n| Value::Number(n.into())).unwrap_or(Value::Null)
-            }
-            "number" | "currency" | "percent" => {
-                let v: Option<f64> = row.get(col_index)?;
-                match v {
-                    Some(f) => serde_json::Number::from_f64(f)
-                        .map(Value::Number)
-                        .unwrap_or(Value::Null),
-                    None => Value::Null,
+        let json_value = if is_external {
+            // External tables may store any SQLite type in any column;
+            // use the generic handler to avoid type-mismatch errors.
+            let v: rusqlite::types::Value = row.get(col_index)?;
+            sql_value_to_json(v)
+        } else {
+            match field.field_type.as_str() {
+                "checkbox" | "rating" | "duration" => {
+                    let v: Option<i64> = row.get(col_index)?;
+                    v.map(|n| Value::Number(n.into())).unwrap_or(Value::Null)
                 }
-            }
-            ft if table_service::is_computed_field_type(ft) => {
-                // Computed fields may return any SQL type; handle generically
-                let v: rusqlite::types::Value = row.get(col_index)?;
-                sql_value_to_json(v)
-            }
-            _ => {
-                let v: Option<String> = row.get(col_index)?;
-                v.map(Value::String).unwrap_or(Value::Null)
+                "number" | "currency" | "percent" => {
+                    let v: Option<f64> = row.get(col_index)?;
+                    match v {
+                        Some(f) => serde_json::Number::from_f64(f)
+                            .map(Value::Number)
+                            .unwrap_or(Value::Null),
+                        None => Value::Null,
+                    }
+                }
+                ft if table_service::is_computed_field_type(ft) => {
+                    // Computed fields may return any SQL type; handle generically
+                    let v: rusqlite::types::Value = row.get(col_index)?;
+                    sql_value_to_json(v)
+                }
+                _ => {
+                    let v: Option<String> = row.get(col_index)?;
+                    v.map(Value::String).unwrap_or(Value::Null)
+                }
             }
         };
         values.insert(field.column_key.clone(), json_value);
@@ -298,6 +320,35 @@ pub fn list_records(
 ) -> Result<Vec<RecordRow>> {
     let table = metadata_service::get_table(conn, table_id)?;
     let fields = metadata_service::list_fields(conn, table_id)?;
+
+    // ── External ATTACH'd table: simplified read-only path ────────────────────
+    if table.is_external != 0 {
+        let table_ref = format_table_ref(&table.storage_name);
+        let col_exprs: String = if fields.is_empty() {
+            String::new()
+        } else {
+            format!(
+                ", {}",
+                fields
+                    .iter()
+                    .map(|f| format!("r.{}", quote_ident(&f.column_key)))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
+        // rowid is the synthetic primary key; timestamps are empty (external DBs have none)
+        let sql = format!(
+            "SELECT CAST(r.rowid AS TEXT), '', ''{} FROM {} r ORDER BY r.rowid ASC",
+            col_exprs, table_ref
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let records = stmt
+            .query_map([], |row| row_to_record(row, &fields, true))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        return Ok(records);
+    }
+
+    // ── Native Slate table path ────────────────────────────────────────────────
     let computed_configs = fetch_computed_configs(conn, table_id)?;
     let select_exprs = build_select_exprs(conn, &fields, table_id, &computed_configs);
 
@@ -309,7 +360,7 @@ pub fn list_records(
         } else {
             format!(", {}", select_exprs.join(", "))
         },
-        quote_ident(&table.storage_name)
+        format_table_ref(&table.storage_name)
     );
 
     let mut params: Vec<String> = Vec::new();
@@ -353,11 +404,11 @@ pub fn list_records(
 
     let mut stmt = conn.prepare(&sql)?;
     let mut records = if params.is_empty() {
-        stmt.query_map([], |row| row_to_record(row, &fields))?
+        stmt.query_map([], |row| row_to_record(row, &fields, false))?
             .collect::<std::result::Result<Vec<_>, _>>()?
     } else {
         let refs = params.iter().map(String::as_str).collect::<Vec<_>>();
-        stmt.query_map(params_from_iter(refs), |row| row_to_record(row, &fields))?
+        stmt.query_map(params_from_iter(refs), |row| row_to_record(row, &fields, false))?
             .collect::<std::result::Result<Vec<_>, _>>()?
     };
 
@@ -372,6 +423,9 @@ pub fn create_record(
     values: &HashMap<String, Value>,
 ) -> Result<RecordRow> {
     let table = metadata_service::get_table(conn, table_id)?;
+    if table.is_external != 0 {
+        return Err(anyhow!("External tables are read-only"));
+    }
     let fields = metadata_service::list_fields(conn, table_id)?;
     let now = now_iso();
     let record_id = crate::db::generate_id("rec");
@@ -401,7 +455,7 @@ pub fn create_record(
 
     let sql = format!(
         "INSERT INTO {} ({}) VALUES ({})",
-        quote_ident(&table.storage_name),
+        format_table_ref(&table.storage_name),
         columns.join(", "),
         placeholders.join(", ")
     );
@@ -418,6 +472,9 @@ pub fn update_record(
     values: &HashMap<String, Value>,
 ) -> Result<RecordRow> {
     let table = metadata_service::get_table(conn, table_id)?;
+    if table.is_external != 0 {
+        return Err(anyhow!("External tables are read-only"));
+    }
     let fields = metadata_service::list_fields(conn, table_id)?;
 
     if values.is_empty() {
@@ -449,7 +506,7 @@ pub fn update_record(
 
     let sql = format!(
         "UPDATE {} SET {} WHERE record_id = ?",
-        quote_ident(&table.storage_name),
+        format_table_ref(&table.storage_name),
         sets.join(", ")
     );
 
@@ -460,7 +517,10 @@ pub fn update_record(
 
 pub fn delete_record(conn: &Connection, table_id: &str, record_id: &str) -> Result<()> {
     let table = metadata_service::get_table(conn, table_id)?;
-    let sql = format!("DELETE FROM {} WHERE record_id = ?", quote_ident(&table.storage_name));
+    if table.is_external != 0 {
+        return Err(anyhow!("External tables are read-only"));
+    }
+    let sql = format!("DELETE FROM {} WHERE record_id = ?", format_table_ref(&table.storage_name));
     conn.execute(&sql, [record_id])?;
     Ok(())
 }
@@ -478,11 +538,11 @@ pub fn get_record(conn: &Connection, table_id: &str, record_id: &str) -> Result<
         } else {
             format!(", {}", select_exprs.join(", "))
         },
-        quote_ident(&table.storage_name)
+        format_table_ref(&table.storage_name)
     );
 
     let mut record = conn
-        .query_row(&sql, [record_id], |row| row_to_record(row, &fields))
+        .query_row(&sql, [record_id], |row| row_to_record(row, &fields, false))
         .optional()?
         .ok_or_else(|| anyhow!("Record not found"))?;
 

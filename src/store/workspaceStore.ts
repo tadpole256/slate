@@ -3,6 +3,7 @@ import {
   attachFileToRecord as attachFileToRecordApi,
   createField,
   createFieldOption as createFieldOptionApi,
+  createFolder as createFolderApi,
   createRecord,
   createRecordLink as createRecordLinkApi,
   createTable,
@@ -10,15 +11,31 @@ import {
   deleteAttachment as deleteAttachmentApi,
   deleteField,
   deleteFieldOption as deleteFieldOptionApi,
+  deleteFolder as deleteFolderApi,
   deleteRecord,
   deleteRecordLink as deleteRecordLinkApi,
   deleteTable,
   deleteView as deleteViewApi,
   deleteRecords as deleteRecordsApi,
   exportCsv as exportCsvApi,
+  exportJson as exportJsonApi,
+  getAppMeta as getAppMetaApi,
+  getDbPath as getDbPathApi,
   getTableSnapshot,
   importCsv as importCsvApi,
   initApp,
+  listBackups as listBackupsApi,
+  listExternalConnections as listExternalConnectionsApi,
+  listFolders as listFoldersApi,
+  createBackup as createBackupApi,
+  moveTableToFolder as moveTableToFolderApi,
+  pickBackupFolder as pickBackupFolderApi,
+  renameFolder as renameFolderApi,
+  reorderFolders as reorderFoldersApi,
+  setAppMeta as setAppMetaApi,
+  pickExternalDbFile as pickExternalDbFileApi,
+  connectExternalDb as connectExternalDbApi,
+  disconnectExternalDb as disconnectExternalDbApi,
   listRecordAttachments as listRecordAttachmentsApi,
   listRecordLinks as listRecordLinksApi,
   listRecordOptions as listRecordOptionsApi,
@@ -33,10 +50,15 @@ import {
   // toggleFieldVisibility is now handled via view config (no backend call needed)
 } from "../lib/tauri";
 import { normalizeName } from "../lib/format";
+import { getTheme, setTheme as setThemeLib } from "../lib/theme";
+import type { Theme } from "../lib/theme";
 import type {
   AppField,
+  AppFolder,
   AppTable,
   AppView,
+  BackupFile,
+  ExternalConnection,
   FieldOption,
   FieldType,
   FilterInput,
@@ -54,6 +76,7 @@ interface WorkspaceState {
   addDebugLog: (msg: string) => void;
   loading: boolean;
   error: string | null;
+  clearError: () => void;
   tables: AppTable[];
   fieldsByTable: Record<string, AppField[]>;
   recordsByTable: Record<string, RecordRow[]>;
@@ -78,6 +101,14 @@ interface WorkspaceState {
   calendarDateFieldIdByTable: Record<string, string | null>;
   createTableModalOpen: boolean;
   addColumnModalOpen: boolean;
+  backupDir: string | null;
+  lastBackupAt: string | null;
+  backupFiles: BackupFile[];
+  backupsLoading: boolean;
+  loadBackupSettings: () => Promise<void>;
+  pickBackupFolder: () => Promise<void>;
+  runBackup: () => Promise<string>;
+  loadBackups: () => Promise<void>;
   initialize: () => Promise<void>;
   forceStartupFailure: (message: string) => void;
   setActiveTable: (tableId: string) => Promise<void>;
@@ -137,7 +168,25 @@ interface WorkspaceState {
   updateFieldOption: (fieldId: string, optionId: string, label: string, color: string) => Promise<void>;
   deleteFieldOption: (fieldId: string, optionId: string) => Promise<void>;
   exportCsvTable: (tableId: string) => Promise<void>;
+  exportJsonTable: (tableId: string) => Promise<void>;
   importCsvToTable: (tableId: string) => Promise<void>;
+  connectExternalDb: () => Promise<void>;
+  disconnectExternalDb: (tableId: string) => Promise<void>;
+  // Theme
+  theme: Theme;
+  setTheme: (t: Theme) => void;
+  // Folders
+  folders: AppFolder[];
+  loadFolders: () => Promise<void>;
+  createFolder: (name: string) => Promise<void>;
+  renameFolder: (id: string, name: string) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
+  moveTableToFolder: (tableId: string, folderId: string | null) => Promise<void>;
+  reorderFolders: (folderIds: string[]) => Promise<void>;
+  // External connections (for Settings panel)
+  externalConnections: ExternalConnection[];
+  dbPath: string;
+  loadExternalConnections: () => Promise<void>;
 }
 
 function buildDefaultValues(fields: AppField[]): Record<string, string | number | null> {
@@ -233,6 +282,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   addDebugLog: (msg) => set((s) => ({ debugLogs: [...s.debugLogs, `${new Date().toISOString().substring(11, 23)} - ${msg}`] })),
   loading: true,
   error: null,
+  clearError: () => set({ error: null }),
   tables: [],
   fieldsByTable: {},
   recordsByTable: {},
@@ -257,6 +307,76 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   calendarDateFieldIdByTable: {},
   createTableModalOpen: false,
   addColumnModalOpen: false,
+  backupDir: null,
+  lastBackupAt: null,
+  backupFiles: [],
+  backupsLoading: false,
+  theme: getTheme(),
+  folders: [],
+  externalConnections: [],
+  dbPath: "",
+
+  loadBackupSettings: async () => {
+    try {
+      const [dir, lastAt] = await Promise.all([
+        getAppMetaApi("backup_dir"),
+        getAppMetaApi("last_backup_at"),
+      ]);
+      set({ backupDir: dir ?? null, lastBackupAt: lastAt ?? null });
+    } catch {
+      // Non-critical — silently ignore
+    }
+  },
+
+  pickBackupFolder: async () => {
+    try {
+      const dir = await pickBackupFolderApi();
+      if (dir) {
+        await setAppMetaApi("backup_dir", dir);
+        set({ backupDir: dir });
+        // Immediately load backup list for the new folder
+        await get().loadBackups();
+      }
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to pick backup folder") });
+    }
+  },
+
+  runBackup: async () => {
+    const { backupDir } = get();
+    if (!backupDir) {
+      throw new Error("No backup folder configured");
+    }
+    set({ backupsLoading: true });
+    try {
+      const path = await createBackupApi(backupDir);
+      const now = String(Math.floor(Date.now() / 1000));
+      await setAppMetaApi("last_backup_at", now);
+      set({ lastBackupAt: now });
+      await get().loadBackups();
+      return path;
+    } catch (error) {
+      const msg = toErrorMessage(error, "Backup failed");
+      set({ error: msg });
+      throw new Error(msg);
+    } finally {
+      set({ backupsLoading: false });
+    }
+  },
+
+  loadBackups: async () => {
+    const { backupDir } = get();
+    if (!backupDir) {
+      set({ backupFiles: [] });
+      return;
+    }
+    try {
+      const files = await listBackupsApi(backupDir);
+      set({ backupFiles: files });
+    } catch {
+      // Non-critical
+    }
+  },
 
   initialize: async () => {
     get().addDebugLog("1. initialize() function started");
@@ -285,8 +405,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
       if (tables[0]?.id) {
         get().addDebugLog("6. Calling refreshActiveTable");
-        await get().refreshActiveTable();
+        await Promise.all([
+          get().refreshActiveTable(),
+          get().loadBackupSettings(),
+          get().loadFolders(),
+          get().loadExternalConnections(),
+        ]);
         get().addDebugLog("7. refreshActiveTable resolved");
+      } else {
+        // No tables yet but still load backup settings + folders
+        void get().loadBackupSettings();
+        void get().loadFolders();
+        void get().loadExternalConnections();
       }
     } catch (error) {
       const msg = toErrorMessage(error, "Failed to initialize Slate");
@@ -1005,6 +1135,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
 
+  exportJsonTable: async (tableId) => {
+    try {
+      await exportJsonApi(tableId);
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to export JSON") });
+    }
+  },
+
   importCsvToTable: async (tableId) => {
     try {
       const count = await importCsvApi(tableId);
@@ -1013,6 +1151,171 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       }
     } catch (error) {
       set({ error: toErrorMessage(error, "Failed to import CSV") });
+    }
+  },
+
+  connectExternalDb: async () => {
+    try {
+      const path = await pickExternalDbFileApi();
+      if (!path) return; // user cancelled file picker
+      const newTables = await connectExternalDbApi(path);
+      if (!newTables.length) return;
+      set((state) => ({
+        tables: [...state.tables, ...newTables],
+        activeTableId: newTables[0].id,
+        selectedRecordId: null,
+      }));
+      await Promise.all([
+        get().refreshActiveTable(),
+        get().loadExternalConnections(),
+      ]);
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to connect external database") });
+    }
+  },
+
+  disconnectExternalDb: async (tableId) => {
+    try {
+      // Derive the alias from storage_name so we can remove ALL tables in that db
+      const { tables } = get();
+      const table = tables.find((t) => t.id === tableId);
+      const alias = table?.storage_name.split(".")[0] ?? null;
+      console.log("[Disconnect] Store action — tableId:", tableId, "alias:", alias, "table:", table?.display_name);
+
+      console.log("[Disconnect] Calling backend disconnect_external_db...");
+      await disconnectExternalDbApi(tableId);
+      console.log("[Disconnect] Backend call succeeded.");
+
+      // Remove all tables that belong to the same attached alias
+      const nextTables = alias
+        ? tables.filter((t) => !t.storage_name.startsWith(`${alias}.`))
+        : tables.filter((t) => t.id !== tableId);
+      console.log("[Disconnect] nextTables count:", nextTables.length, "(was:", tables.length, ")");
+
+      const { activeTableId } = get();
+      const nextActive = nextTables.some((t) => t.id === activeTableId)
+        ? activeTableId
+        : nextTables[0]?.id ?? null;
+      console.log("[Disconnect] nextActive:", nextActive);
+
+      set((state) => ({
+        tables: nextTables,
+        activeTableId: nextActive,
+        selectedRecordId: null,
+        fieldsByTable: Object.fromEntries(
+          Object.entries(state.fieldsByTable).filter(([id]) => nextTables.some((t) => t.id === id))
+        ),
+        recordsByTable: Object.fromEntries(
+          Object.entries(state.recordsByTable).filter(([id]) => nextTables.some((t) => t.id === id))
+        ),
+      }));
+      console.log("[Disconnect] State updated successfully.");
+
+      if (nextActive) {
+        await get().refreshActiveTable();
+      }
+      // Refresh external connections list
+      void get().loadExternalConnections();
+    } catch (error) {
+      console.error("[Disconnect] ERROR:", error);
+      set({ error: toErrorMessage(error, "Failed to disconnect external database") });
+    }
+  },
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+
+  setTheme: (t) => {
+    setThemeLib(t);
+    set({ theme: t });
+  },
+
+  // ── Folders ────────────────────────────────────────────────────────────────
+
+  loadFolders: async () => {
+    try {
+      const folders = await listFoldersApi();
+      set({ folders });
+    } catch {
+      // Non-critical — silently ignore
+    }
+  },
+
+  createFolder: async (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const folder = await createFolderApi(trimmed);
+      set((state) => ({ folders: [...state.folders, folder] }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to create folder") });
+    }
+  },
+
+  renameFolder: async (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const updated = await renameFolderApi(id, trimmed);
+      set((state) => ({
+        folders: state.folders.map((f) => (f.id === id ? updated : f)),
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to rename folder") });
+    }
+  },
+
+  deleteFolder: async (id) => {
+    try {
+      await deleteFolderApi(id);
+      // Ungroup tables that were in this folder
+      set((state) => ({
+        folders: state.folders.filter((f) => f.id !== id),
+        tables: state.tables.map((t) =>
+          t.folder_id === id ? { ...t, folder_id: null } : t
+        ),
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to delete folder") });
+    }
+  },
+
+  moveTableToFolder: async (tableId, folderId) => {
+    try {
+      await moveTableToFolderApi(tableId, folderId);
+      set((state) => ({
+        tables: state.tables.map((t) =>
+          t.id === tableId ? { ...t, folder_id: folderId } : t
+        ),
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to move table") });
+    }
+  },
+
+  reorderFolders: async (folderIds) => {
+    try {
+      await reorderFoldersApi(folderIds);
+      const folderMap = new Map(get().folders.map((f) => [f.id, f]));
+      const reordered = folderIds
+        .map((id) => folderMap.get(id))
+        .filter((f): f is AppFolder => !!f);
+      set({ folders: reordered });
+    } catch (error) {
+      set({ error: toErrorMessage(error, "Failed to reorder folders") });
+    }
+  },
+
+  // ── External connections (Settings panel) ─────────────────────────────────
+
+  loadExternalConnections: async () => {
+    try {
+      const [connections, dbPath] = await Promise.all([
+        listExternalConnectionsApi(),
+        getDbPathApi(),
+      ]);
+      set({ externalConnections: connections, dbPath });
+    } catch {
+      // Non-critical
     }
   },
 }));

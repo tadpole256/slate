@@ -5,19 +5,24 @@ use tauri::State;
 
 use crate::models::{
     AppField,
+    AppFolder,
     AppTable,
     AppView,
+    BackupFile,
+    ExternalConnection,
     FieldOption,
     FilterInput,
     InitResponse,
     RecordAttachment,
+    RecordDetailPayload,
     RecordLink,
+    RecordNote,
     RecordOption,
     RecordRow,
     SortInput,
     TableSnapshot,
 };
-use crate::services::{attachment_service, csv_service, field_option_service, link_service, metadata_service, record_service, table_service, view_service};
+use crate::services::{attachment_service, backup_service, csv_service, external_db_service, field_option_service, folder_service, link_service, metadata_service, note_service, record_service, table_service, view_service};
 use crate::AppState;
 
 type CommandResult<T> = Result<T, String>;
@@ -27,6 +32,9 @@ fn open_connection(db_path: &std::path::Path) -> anyhow::Result<rusqlite::Connec
     conn.busy_timeout(std::time::Duration::from_secs(5))?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
     crate::db::init::initialize_database(&conn)?;
+    // Re-attach any previously connected external databases.
+    // Errors are silenced so a missing/moved file never prevents startup.
+    let _ = external_db_service::reattach_all_external_dbs(&conn);
     Ok(conn)
 }
 
@@ -73,6 +81,8 @@ pub async fn init_app(state: State<'_, std::sync::Arc<AppState>>) -> CommandResu
         println!("DEBUG: init_app executing within with_conn");
         table_service::repair_all_table_storage(conn)?;
         println!("DEBUG: init_app repaired table storage");
+        // Run auto-backup silently — errors are swallowed so startup is never blocked.
+        let _ = backup_service::auto_backup_if_needed(conn);
         let tables = metadata_service::list_tables(conn)?;
         println!("DEBUG: init_app listed tables, finishing");
         Ok(InitResponse { tables })
@@ -436,5 +446,260 @@ pub async fn import_csv(
 ) -> CommandResult<Option<usize>> {
     with_conn(state, move |conn| {
         csv_service::import_csv(conn, &table_id)
+    }).await
+}
+
+#[tauri::command]
+pub async fn export_json(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+) -> CommandResult<Option<String>> {
+    with_conn(state, move |conn| {
+        csv_service::export_json(conn, &table_id)
+    }).await
+}
+
+// ── Backup commands ───────────────────────────────────────────────────────────
+
+/// Opens a native folder-picker dialog. Returns the chosen path or null if
+/// the user cancelled. Does NOT persist the choice — call `set_app_meta`
+/// with key `"backup_dir"` to save it.
+#[tauri::command]
+pub async fn pick_backup_folder() -> CommandResult<Option<String>> {
+    tauri::async_runtime::spawn_blocking(|| {
+        backup_service::pick_folder().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Creates a `VACUUM INTO` backup of the database in `dest_dir`.
+/// Returns the full path of the created backup file.
+#[tauri::command]
+pub async fn create_backup(
+    state: State<'_, std::sync::Arc<AppState>>,
+    dest_dir: String,
+) -> CommandResult<String> {
+    with_conn(state, move |conn| {
+        backup_service::create_backup(conn, &dest_dir)
+    }).await
+}
+
+/// Lists `slate-backup-*.db` files in `dest_dir`, newest-first, up to 10.
+#[tauri::command]
+pub async fn list_backups(dest_dir: String) -> CommandResult<Vec<BackupFile>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        backup_service::list_backups(&dest_dir).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Reads a value from the `app_meta` key-value store.
+#[tauri::command]
+pub async fn get_app_meta(
+    state: State<'_, std::sync::Arc<AppState>>,
+    key: String,
+) -> CommandResult<Option<String>> {
+    with_conn(state, move |conn| {
+        use rusqlite::OptionalExtension;
+        let val: Option<String> = conn
+            .query_row(
+                "SELECT value FROM app_meta WHERE key = ?1",
+                [&key],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(val)
+    }).await
+}
+
+/// Upserts a value in the `app_meta` key-value store.
+#[tauri::command]
+pub async fn set_app_meta(
+    state: State<'_, std::sync::Arc<AppState>>,
+    key: String,
+    value: String,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        let now = crate::db::now_iso();
+        conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value, updated_at) VALUES (?1, ?2, ?3)",
+            [&key, &value, &now],
+        )?;
+        Ok(())
+    }).await
+}
+
+// ── External database commands ────────────────────────────────────────────────
+
+/// Opens a native file-picker for SQLite databases.
+/// Returns the chosen path or null if the user cancelled. Stateless — does not ATTACH yet.
+#[tauri::command]
+pub async fn pick_external_db_file() -> CommandResult<Option<String>> {
+    tauri::async_runtime::spawn_blocking(|| {
+        external_db_service::pick_db_file().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Connects an external SQLite database at `path`.
+/// ATTACHes it, introspects tables/columns, creates metadata, and persists the path
+/// in `app_meta` for automatic re-attachment on future launches.
+/// Returns the list of newly created `AppTable` entries.
+#[tauri::command]
+pub async fn connect_external_db(
+    state: State<'_, std::sync::Arc<AppState>>,
+    path: String,
+) -> CommandResult<Vec<AppTable>> {
+    with_conn(state, move |conn| {
+        external_db_service::connect_external_db(conn, path)
+    }).await
+}
+
+/// Disconnects the external database that owns the given `table_id`.
+/// Removes all related metadata, cleans `app_meta`, and DETACHes the database.
+#[tauri::command]
+pub async fn disconnect_external_db(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        external_db_service::disconnect_external_db(conn, &table_id)
+    }).await
+}
+
+/// Returns all currently connected external databases as summaries for the Settings panel.
+#[tauri::command]
+pub async fn list_external_connections(
+    state: State<'_, std::sync::Arc<AppState>>,
+) -> CommandResult<Vec<ExternalConnection>> {
+    with_conn(state, move |conn| {
+        external_db_service::list_external_connections(conn)
+    }).await
+}
+
+/// Returns the absolute path to the main Slate database file.
+#[tauri::command]
+pub async fn get_db_path(state: State<'_, std::sync::Arc<AppState>>) -> CommandResult<String> {
+    Ok(state.db_path.to_string_lossy().to_string())
+}
+
+// ── Folder commands ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn list_folders(
+    state: State<'_, std::sync::Arc<AppState>>,
+) -> CommandResult<Vec<AppFolder>> {
+    with_conn(state, move |conn| folder_service::list_folders(conn)).await
+}
+
+#[tauri::command]
+pub async fn create_folder(
+    state: State<'_, std::sync::Arc<AppState>>,
+    name: String,
+) -> CommandResult<AppFolder> {
+    with_conn(state, move |conn| folder_service::create_folder(conn, &name)).await
+}
+
+#[tauri::command]
+pub async fn rename_folder(
+    state: State<'_, std::sync::Arc<AppState>>,
+    id: String,
+    name: String,
+) -> CommandResult<AppFolder> {
+    with_conn(state, move |conn| folder_service::rename_folder(conn, &id, &name)).await
+}
+
+#[tauri::command]
+pub async fn delete_folder(
+    state: State<'_, std::sync::Arc<AppState>>,
+    id: String,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| folder_service::delete_folder(conn, &id)).await
+}
+
+#[tauri::command]
+pub async fn move_table_to_folder(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    folder_id: Option<String>,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        folder_service::move_table_to_folder(conn, &table_id, folder_id.as_deref())
+    }).await
+}
+
+#[tauri::command]
+pub async fn reorder_folders(
+    state: State<'_, std::sync::Arc<AppState>>,
+    folder_ids: Vec<String>,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| folder_service::reorder_folders(conn, &folder_ids)).await
+}
+
+// ── Record detail window ─────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_record_detail(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    record_id: String,
+) -> CommandResult<RecordDetailPayload> {
+    with_conn(state, move |conn| {
+        let table = metadata_service::get_table(conn, &table_id)?;
+        let fields = metadata_service::list_fields(conn, &table_id)?;
+        let all_options = field_option_service::list_all_options_for_table(conn, &table_id)?;
+        let record = record_service::get_record(conn, &table_id, &record_id)?;
+
+        // Group options by field_id
+        let mut field_options: std::collections::HashMap<String, Vec<FieldOption>> =
+            std::collections::HashMap::new();
+        for opt in all_options {
+            field_options.entry(opt.field_id.clone()).or_default().push(opt);
+        }
+
+        Ok(RecordDetailPayload {
+            table,
+            fields,
+            field_options,
+            record,
+        })
+    }).await
+}
+
+// ── Record Note commands ──────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn list_record_notes(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    record_id: String,
+) -> CommandResult<Vec<RecordNote>> {
+    with_conn(state, move |conn| {
+        note_service::list_notes(conn, &table_id, &record_id)
+    }).await
+}
+
+#[tauri::command]
+pub async fn create_record_note(
+    state: State<'_, std::sync::Arc<AppState>>,
+    table_id: String,
+    record_id: String,
+    body: String,
+) -> CommandResult<RecordNote> {
+    with_conn(state, move |conn| {
+        note_service::create_note(conn, &table_id, &record_id, &body)
+    }).await
+}
+
+#[tauri::command]
+pub async fn delete_record_note(
+    state: State<'_, std::sync::Arc<AppState>>,
+    note_id: String,
+) -> CommandResult<()> {
+    with_conn(state, move |conn| {
+        note_service::delete_note(conn, &note_id)
     }).await
 }

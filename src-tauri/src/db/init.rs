@@ -105,11 +105,35 @@ pub fn initialize_database(conn: &Connection) -> Result<()> {
           config_json TEXT NOT NULL DEFAULT '{}',
           FOREIGN KEY(field_id) REFERENCES app_fields(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS app_folders (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          folder_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_app_folders_order ON app_folders(folder_order);
+
+        CREATE TABLE IF NOT EXISTS record_notes (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_record_notes_record
+          ON record_notes(table_id, record_id);
         "#,
     )?;
 
     migrate_field_type_constraint(conn)?;
     migrate_field_type_constraint_v2(conn)?;
+    migrate_field_type_constraint_v3(conn)?;
+    migrate_add_is_external(conn)?;
+    migrate_add_folder_id(conn)?;
 
     seed_starter_tables(conn)?;
 
@@ -240,6 +264,24 @@ fn migrate_field_type_constraint(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Adds the `is_external` column to `app_tables` (for external SQLite connections).
+/// Uses ALTER TABLE ADD COLUMN which is safe in SQLite for new columns with defaults.
+/// Idempotent: checks whether the column already exists before running.
+fn migrate_add_is_external(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(app_tables)")?;
+    let has_column = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .any(|name| name == "is_external");
+
+    if !has_column {
+        conn.execute_batch(
+            "ALTER TABLE app_tables ADD COLUMN is_external INTEGER NOT NULL DEFAULT 0",
+        )?;
+    }
+    Ok(())
+}
+
 /// Migrates the app_fields table to add computed field types: 'lookup', 'rollup', 'formula'.
 /// Uses the same table-recreation pattern as migrate_field_type_constraint.
 /// Idempotent: checks the existing schema before running.
@@ -280,6 +322,70 @@ fn migrate_field_type_constraint_v2(conn: &Connection) -> Result<()> {
         INSERT INTO app_fields_v3 SELECT * FROM app_fields;
         DROP TABLE app_fields;
         ALTER TABLE app_fields_v3 RENAME TO app_fields;
+
+        PRAGMA foreign_keys = ON;
+    "#)?;
+
+    Ok(())
+}
+
+/// Adds the `folder_id` column to `app_tables` (for folder/workspace grouping).
+/// Idempotent: checks whether the column already exists before running.
+fn migrate_add_folder_id(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(app_tables)")?;
+    let has_column = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .any(|name| name == "folder_id");
+
+    if !has_column {
+        conn.execute_batch(
+            "ALTER TABLE app_tables ADD COLUMN folder_id TEXT REFERENCES app_folders(id) ON DELETE SET NULL",
+        )?;
+    }
+    Ok(())
+}
+
+/// Migrates the app_fields table to add the `tags` field type.
+/// Uses the same table-recreation pattern as previous migrations.
+/// Idempotent: checks the existing schema before running.
+fn migrate_field_type_constraint_v3(conn: &Connection) -> Result<()> {
+    let schema_sql: String = conn.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='app_fields'",
+        [],
+        |row| row.get(0),
+    )?;
+
+    if schema_sql.contains("'tags'") {
+        return Ok(()); // Already on the expanded schema
+    }
+
+    conn.execute_batch(r#"
+        PRAGMA foreign_keys = OFF;
+
+        CREATE TABLE IF NOT EXISTS app_fields_v4 (
+          id TEXT PRIMARY KEY,
+          table_id TEXT NOT NULL,
+          column_key TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          field_type TEXT NOT NULL CHECK (field_type IN (
+            'text', 'long_text', 'date', 'checkbox', 'link',
+            'number', 'currency', 'percent', 'email', 'url', 'phone',
+            'single_select', 'multi_select', 'rating', 'duration',
+            'lookup', 'rollup', 'formula', 'tags'
+          )),
+          field_order INTEGER NOT NULL,
+          is_visible INTEGER NOT NULL DEFAULT 1,
+          is_primary_label INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(table_id) REFERENCES app_tables(id) ON DELETE CASCADE,
+          UNIQUE(table_id, column_key)
+        );
+
+        INSERT INTO app_fields_v4 SELECT * FROM app_fields;
+        DROP TABLE app_fields;
+        ALTER TABLE app_fields_v4 RENAME TO app_fields;
 
         PRAGMA foreign_keys = ON;
     "#)?;

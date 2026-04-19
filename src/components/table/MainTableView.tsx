@@ -18,6 +18,7 @@ interface MainTableViewProps {
   selectedRecordId: string | null;
   onSelectRecord: (recordId: string) => void;
   onExpandRecord?: (recordId: string) => void;
+  onOpenRecordWindow?: (recordId: string) => void;
   onCellChange: (recordId: string, columnKey: string, value: string | number | null) => void;
   onOpenLink: (value: string) => void;
   onAddColumn: () => void;
@@ -31,7 +32,9 @@ interface MainTableViewProps {
   onSetGroupByField: (fieldId: string | null) => void;
   onBulkDelete: (recordIds: string[]) => void;
   onExportCsv: () => void;
+  onExportJson: () => void;
   onImportCsv: () => void;
+  onReorderFields: (fieldIds: string[]) => void;
 }
 
 export function MainTableView({
@@ -47,6 +50,7 @@ export function MainTableView({
   selectedRecordId,
   onSelectRecord,
   onExpandRecord,
+  onOpenRecordWindow,
   onCellChange,
   onOpenLink,
   onAddColumn,
@@ -60,7 +64,9 @@ export function MainTableView({
   onSetGroupByField,
   onBulkDelete,
   onExportCsv,
+  onExportJson,
   onImportCsv,
+  onReorderFields,
 }: MainTableViewProps) {
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [showHidePanel, setShowHidePanel] = useState(false);
@@ -102,6 +108,29 @@ export function MainTableView({
     onSortsChange(next);
   }
 
+  /**
+   * Called by TableGrid with the new order of VISIBLE field IDs.
+   * We need to merge with hidden fields to produce a complete ordered field ID list
+   * for the backend. Hidden fields "stay in place" between the visible fields they
+   * were adjacent to.
+   *
+   * Algorithm: walk all fields in current order; replace visible slots with the
+   * new visible order in sequence; hidden fields keep their positions.
+   *
+   * Example:
+   *   allFields = [A(v), B(h), C(v), D(h), E(v)]
+   *   newVisibleOrder = [C, A, E]  (user dragged C to first)
+   *   result = [C, B, A, D, E]
+   */
+  function handleReorderVisibleFields(newVisibleFieldIds: string[]) {
+    const byId = new Map(fields.map((f) => [f.id, f]));
+    const hiddenSet = new Set(hiddenFieldIds);
+    const newVisible = newVisibleFieldIds.map((id) => byId.get(id)!);
+    let vi = 0;
+    const merged = fields.map((f) => (hiddenSet.has(f.id) ? f : newVisible[vi++]));
+    onReorderFields(merged.map((f) => f.id));
+  }
+
   if (!table) {
     return <EmptyState title="Select a table" message="Choose a table from the sidebar to continue." />;
   }
@@ -130,6 +159,7 @@ export function MainTableView({
           setSelectedIds(new Set());
         }}
         onExportCsv={onExportCsv}
+        onExportJson={onExportJson}
         onImportCsv={onImportCsv}
       />
 
@@ -155,8 +185,9 @@ export function MainTableView({
         onOpenLink={onOpenLink}
         onRenameField={onRenameField}
         onDeleteField={onDeleteField}
-        onDoubleClickRecord={onExpandRecord}
+        onDoubleClickRecord={onOpenRecordWindow ?? onExpandRecord}
         onSelectionChange={setSelectedIds}
+        onReorderFields={handleReorderVisibleFields}
       />
 
       <button className="add-row-bar" onClick={onAddRow}>

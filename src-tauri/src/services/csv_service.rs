@@ -124,6 +124,52 @@ pub fn export_csv(conn: &Connection, table_id: &str) -> Result<Option<String>> {
 }
 
 // ---------------------------------------------------------------------------
+// JSON Export
+// ---------------------------------------------------------------------------
+
+/// Export the given table to a JSON file chosen via a native save dialog.
+/// Returns the path of the written file, or None if the user cancelled.
+pub fn export_json(conn: &Connection, table_id: &str) -> Result<Option<String>> {
+    let fields = metadata_service::list_fields(conn, table_id)?;
+    if fields.is_empty() {
+        bail!("Table has no columns to export");
+    }
+
+    let records = record_service::list_records(conn, table_id, None, None, None)?;
+
+    // Pick save location
+    let path = rfd::FileDialog::new()
+        .set_title("Export as JSON")
+        .set_file_name("export.json")
+        .add_filter("JSON files", &["json"])
+        .save_file();
+
+    let path = match path {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+
+    // Build array of objects keyed by display_name
+    let mut rows: Vec<serde_json::Value> = Vec::with_capacity(records.len());
+    for record in &records {
+        let mut obj = serde_json::Map::new();
+        for field in &fields {
+            let v = record.values.get(&field.column_key).cloned().unwrap_or(Value::Null);
+            obj.insert(field.display_name.clone(), v);
+        }
+        rows.push(Value::Object(obj));
+    }
+
+    let json_str = serde_json::to_string_pretty(&rows)
+        .with_context(|| "Failed to serialize records to JSON")?;
+
+    std::fs::write(&path, json_str.as_bytes())
+        .with_context(|| format!("Cannot write {:?}", path))?;
+
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+// ---------------------------------------------------------------------------
 // Import
 // ---------------------------------------------------------------------------
 

@@ -1,9 +1,13 @@
 pub mod attachment_service;
+pub mod external_db_service;
+pub mod backup_service;
 pub mod csv_service;
 pub mod field_option_service;
 pub mod filter_service;
+pub mod folder_service;
 pub mod link_service;
 pub mod metadata_service;
+pub mod note_service;
 pub mod record_service;
 pub mod schema_service;
 pub mod search_service;
